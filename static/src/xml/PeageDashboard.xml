@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+  <t t-name="anpr_peage_dashboard" owl="1">
+    <div class="o_container otech-peage-dashboard p-3" style="min-height: 100vh; overflow-y: auto;">
+
+      <!-- Header -->
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-flex align-items-center">
+          <img src="/anpr_peage_manager/static/src/img/logo_ogooue.png" class="header-logo me-2"/>
+          <span class="dashboard-title">OTECHPEAGE</span>
+        </div>
+        <div class="text-muted small" t-esc="state.date"/>
+      </div>
+
+      <!-- Contenu principal -->
+      <div class="d-flex flex-wrap" style="gap: 20px;">
+        <!-- Liste des transactions -->
+        <div class="flex-grow-1" style="min-width: 500px;">
+          <h5 class="mb-3">Liste des transactions</h5>
+
+          <div class="d-flex fw-bold border-bottom pb-1 mb-2 small text-uppercase">
+            <div class="flex-fill">Opérateur</div>
+            <div class="flex-fill">Plaque</div>
+            <div class="flex-fill">Date</div>
+            <div class="flex-fill">Heure</div>
+            <div class="flex-fill text-end">Montant</div>
+          </div>
+
+          <div class="transaction-list">
+            <t t-foreach="state.transactions" t-as="tx" t-key="tx.id">
+              <div class="d-flex transaction-line">
+                <div class="flex-fill" t-esc="tx.operator"/>
+                <div class="flex-fill" t-esc="tx.plate"/>
+                <div class="flex-fill" t-esc="tx.date"/>
+                <div class="flex-fill" t-esc="tx.time"/>
+                <div class="flex-fill text-end"><t t-esc="tx.amount"/> CFA</div>
+              </div>
+            </t>
+          </div>
+
+          <!-- <button class="btn btn-outline-primary mt-3" t-on-click="onExportExcel">
+            📤 Export Excel
+          </button> -->
+        </div>
+
+        <!-- Clavier rapide -->
+        <div style="width: 300px;" class="ps-3">
+          <div class="border rounded p-3 bg-white d-flex flex-column gap-3">
+            <div class="text-center fw-bold text-primary">
+              <t t-if="state.detected_type">
+                Montant : <t t-esc="getAmountLabel()"/> CFA
+              </t>
+              <t t-else="">Aucun type détecté</t>
+            </div>
+            <button class="btn btn-secondary" t-on-click="openManualModal">
+              🔓 Payer manuellement
+            </button>
+            <button class="btn btn-success" t-on-click="openMobileMoneyModal">
+              📱 Payer via Mobile Money
+            </button>
+          </div>
+        </div>
+
+        <!-- Modal : Paiement Manuel -->
+        <t t-if="state.showModal">
+          <div class="modal-backdrop fade show"
+               style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1040;"></div>
+
+          <div class="modal-content bg-white p-4 rounded shadow"
+               style="width: 700px; margin:auto; top:15%; position:fixed; left:0; right:0; z-index:1055;">
+
+            <h5 class="mb-3">Paiement Manuel</h5>
+
+            <div class="d-flex justify-content-between" style="gap: 20px;">
+              <div style="flex: 1;">
+                <div class="mb-3">
+                  <label class="form-label">Plaque</label>
+                  <input type="text" class="form-control" t-model="state.form.plate" placeholder="Ex : TR-123-AB"/>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Type de véhicule</label>
+                  <select class="form-select" t-model="state.form.vehicle_type" t-on-change="onVehicleTypeChangeModal">
+                    <option value="">-- Sélectionner --</option>
+                    <option value="voiture">Voiture</option>
+                    <option value="bus">Bus</option>
+                    <option value="taxi">Taxi</option>
+                    <option value="moto">Moto</option>
+                    <option value="camion">Camion</option>
+                  </select>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Montant à payer (CFA)</label>
+                  <input type="number" class="form-control" t-att-value="state.form.amount" readonly="readonly"/>
+                </div>
+
+                <div class="d-flex justify-content-between mt-3">
+                  <button class="btn btn-secondary" t-on-click="closeModal">Annuler</button>
+                  <button class="btn btn-success" t-on-click="confirmManualPayment"
+                          t-att-disabled="!state.form.plate || !state.form.vehicle_type">
+                    ✅ Payer
+                  </button>
+                </div>
+              </div>
+
+              <!-- Clavier plaque -->
+              <div style="flex: 1;">
+                <div class="d-flex flex-wrap justify-content-center">
+                  <t t-foreach="['1','2','3','4','5','6','7','8','9','0','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','-']"
+                     t-as="key" t-key="key">
+                    <button class="btn btn-outline-dark m-1" style="width: 50px;"
+                            t-on-click="onKeyboardKeyClick"
+                            t-att-data-key="key">
+                      <t t-esc="key"/>
+                    </button>
+                  </t>
+                </div>
+                <div class="text-center mt-2">
+                  <button class="btn btn-danger" style="width: 150px;" t-on-click="clearPlate">Effacer</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </t>
+
+        <!-- Modal : Paiement Mobile Money -->
+        <t t-if="state.showMobileModal">
+          <div class="modal-backdrop fade show"
+              style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1040;"></div>
+
+          <div class="modal-content bg-white p-4 rounded shadow"
+              style="width: 700px; margin:auto; top:15%; position:fixed; left:0; right:0; z-index:1055;">
+
+            <h5 class="mb-3">Paiement Mobile Money</h5>
+
+            <div class="d-flex justify-content-between" style="gap: 20px;">
+              <div style="flex: 1;">
+                <div class="mb-3">
+                  <label class="form-label">Numéro Mobile Money</label>
+                  <input type="tel" class="form-control"
+                        t-model="state.mobileForm.numero"
+                        placeholder="Ex : 074000009"
+                        t-on-focus="() => { state.inputTarget = 'numero' }"/>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Plaque</label>
+                  <input type="text" class="form-control"
+                        t-model="state.mobileForm.plate"
+                        placeholder="Ex : TR-123-AB"
+                        t-on-focus="() => { state.inputTarget = 'plate' }"/>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Type de véhicule</label>
+                  <select class="form-select" t-model="state.mobileForm.vehicle_type" t-on-change="onVehicleTypeChangeMobile">
+                    <option value="">-- Sélectionner --</option>
+                    <option value="voiture">Voiture</option>
+                    <option value="bus">Bus</option>
+                    <option value="taxi">Taxi</option>
+                    <option value="moto">Moto</option>
+                    <option value="camion">Camion</option>
+                  </select>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Montant à payer (CFA)</label>
+                  <input type="number" class="form-control" t-att-value="state.mobileForm.amount" readonly="readonly"/>
+                </div>
+
+                <div class="d-flex justify-content-between">
+                  <button class="btn btn-secondary" t-on-click="closeMobileModal">Annuler</button>
+                  <button class="btn btn-success" t-on-click="confirmMobileMoneyPayment" t-att-disabled="!state.mobileForm.numero">
+                    <t t-if="!state.loading">✅ Payer maintenant</t>
+                    <t t-if="state.loading">⏳ Paiement en cours...</t>
+                  </button>
+                </div>
+              </div>
+
+              <div style="flex: 1;">
+                <div class="d-flex flex-wrap justify-content-center">
+                  <t t-foreach="['1','2','3','4','5','6','7','8','9','0','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','-']"
+                    t-as="key" t-key="key">
+                    <button class="btn btn-outline-dark m-1" style="width: 50px;"
+                            t-on-click="onKeyboardKeyClickMobile"
+                            t-att-data-key="key">
+                      <t t-esc="key"/>
+                    </button>
+                  </t>
+                </div>
+                <div class="text-center mt-2">
+                  <button class="btn btn-danger" style="width: 150px;" t-on-click="clearMobileInput">Effacer</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </t>
+
+      </div>
+
+      <!-- Footer -->
+      <div class="mt-4 p-3 rounded bg-warning text-dark text-center">
+        <t t-if="state.detected_plate">
+          <strong>Plaque détectée :</strong> <span class="fw-bold" t-esc="state.detected_plate"/>
+        </t>
+        <t t-else="">Aucune plaque détectée</t>
+      </div>
+
+       <t t-if="state.hikcentral_error">
+          <div class="alert alert-danger text-center fw-bold" role="alert">
+            ❌ Problème : Le service HikCentral n'est pas actif. Veuillez vérifier la connexion Artemis !
+          </div>
+        </t>
+
+    </div>
+  </t>
+</templates>
