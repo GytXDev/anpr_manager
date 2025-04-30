@@ -37,10 +37,6 @@
               </div>
             </t>
           </div>
-
-          <!-- <button class="btn btn-outline-primary mt-3" t-on-click="onExportExcel">
-            📤 Export Excel
-          </button> -->
         </div>
 
         <!-- Clavier rapide -->
@@ -53,10 +49,10 @@
               <t t-else="">Aucun type détecté</t>
             </div>
             <button class="btn btn-secondary" t-on-click="openManualModal">
-              🔓 Payer manuellement
+              Payer manuellement
             </button>
             <button class="btn btn-success" t-on-click="openMobileMoneyModal">
-              📱 Payer via Mobile Money
+              Payer via Mobile Money
             </button>
           </div>
         </div>
@@ -81,13 +77,12 @@
                 <div class="mb-3">
                   <label class="form-label">Type de véhicule</label>
                   <select class="form-select" t-model="state.form.vehicle_type" t-on-change="onVehicleTypeChangeModal">
-                    <option value="">-- Sélectionner --</option>
-                    <option value="voiture">Voiture</option>
-                    <option value="bus">Bus</option>
-                    <option value="taxi">Taxi</option>
-                    <option value="moto">Moto</option>
-                    <option value="camion">Camion</option>
+                      <option value="">-- Sélectionner --</option>
+                      <t t-foreach="vehicleCategories" t-as="cat" t-key="cat">
+                          <option t-att-value="cat" t-esc="cat"/>
+                      </t>
                   </select>
+
                 </div>
 
                 <div class="mb-3">
@@ -99,7 +94,7 @@
                   <button class="btn btn-secondary" t-on-click="closeModal">Annuler</button>
                   <button class="btn btn-success" t-on-click="confirmManualPayment"
                           t-att-disabled="!state.form.plate || !state.form.vehicle_type">
-                    ✅ Payer
+                    Payer
                   </button>
                 </div>
               </div>
@@ -155,13 +150,12 @@
                 <div class="mb-3">
                   <label class="form-label">Type de véhicule</label>
                   <select class="form-select" t-model="state.mobileForm.vehicle_type" t-on-change="onVehicleTypeChangeMobile">
-                    <option value="">-- Sélectionner --</option>
-                    <option value="voiture">Voiture</option>
-                    <option value="bus">Bus</option>
-                    <option value="taxi">Taxi</option>
-                    <option value="moto">Moto</option>
-                    <option value="camion">Camion</option>
+                      <option value="">-- Sélectionner --</option>
+                      <t t-foreach="vehicleCategories" t-as="cat" t-key="cat">
+                          <option t-att-value="cat" t-esc="cat"/>
+                      </t>
                   </select>
+
                 </div>
 
                 <div class="mb-3">
@@ -172,8 +166,8 @@
                 <div class="d-flex justify-content-between">
                   <button class="btn btn-secondary" t-on-click="closeMobileModal">Annuler</button>
                   <button class="btn btn-success" t-on-click="confirmMobileMoneyPayment" t-att-disabled="!state.mobileForm.numero">
-                    <t t-if="!state.loading">✅ Payer maintenant</t>
-                    <t t-if="state.loading">⏳ Paiement en cours...</t>
+                    <t t-if="!state.loading">Payer maintenant</t>
+                    <t t-if="state.loading">Paiement en cours...</t>
                   </button>
                 </div>
               </div>
@@ -209,7 +203,7 @@
 
        <t t-if="state.hikcentral_error">
           <div class="alert alert-danger text-center fw-bold" role="alert">
-            ❌ Problème : Le service HikCentral n'est pas actif. Veuillez vérifier la connexion Artemis !
+            Problème : Le service HikCentral n'est pas actif. Veuillez vérifier la connexion Artemis !
           </div>
         </t>
 

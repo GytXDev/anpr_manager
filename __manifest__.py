@@ -19,10 +19,13 @@
     'assets': {
     'web.assets_backend': [
             'anpr_peage_manager/static/src/js/main.js',
+            'anpr_peage_manager/static/src/js/CashDrawerScreen.js',
             'anpr_peage_manager/static/src/js/PeageDashboard.js',
             'anpr_peage_manager/static/src/xml/template.xml',
             'anpr_peage_manager/static/src/xml/PeageDashboard.xml',
+            'anpr_peage_manager/static/src/xml/cash_drawer_screen.xml',
             'anpr_peage_manager/static/src/css/dashboard.css',
+            'anpr_peage_manager/static/src/css/cash_drawer_screen.css',
         ],
     },
     'installable': True,

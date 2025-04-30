@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+  <t t-name="anpr_peage_cash_drawer_screen" owl="1">
+    <div class="cash-drawer-screen">
+      <!-- Avatar -->
+      <div class="avatar-ring">
+        <img t-att-src="state.userAvatar" class="avatar-img"/>
+      </div>
+
+      <!-- Nom -->
+      <h2 class="user-name"><t t-esc="state.userName"/></h2>
+
+      <!-- Montant (total caissier) -->
+      <p class="amount-label">Total encaissé aujourd’hui</p>
+      <p class="amount-value"><t t-esc="state.userTotals.overall"/> CFA</p>
+
+      <!-- Détail -->
+      <div class="totals-box">
+        <span>Manuel : <t t-esc="state.userTotals.manual"/> CFA</span> |
+        <span>Mobile : <t t-esc="state.userTotals.mobile"/> CFA</span>
+      </div>
+
+      <!-- Global -->
+      <!-- <div class="totals-box small mt-2">
+        Global : <t t-esc="state.globalTotals.overall"/> CFA
+      </div> -->
+
+      <!-- Bouton -->
+      <button class="btn-open mt-4" t-on-click="onOpenCash">
+        Ouvrir la caisse
+      </button>
+
+      <!-- Date -->
+      <div class="date-display">
+        <t t-esc="formatDateTime(state.currentTime)"/>
+      </div>
+    </div>
+  </t>
+</templates>

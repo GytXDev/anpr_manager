@@ -3,7 +3,7 @@ from odoo import http, fields
 from odoo.http import request
 import requests
 import socket
-import time
+from datetime import datetime, time
 import serial
 import logging
 from .pay import generate_receipt_content
@@ -12,6 +12,31 @@ _logger = logging.getLogger(__name__)
 
 DISPLAY_WIDTH = 20
 SCROLL_DELAY = 0.2
+
+
+def _today_range():
+    today = fields.Date.today()
+    start = datetime.combine(today, time.min)   # 00:00:00
+    end   = datetime.combine(today, time.max)   # 23:59:59
+    return start, end
+
+
+def _totaux(env, domain_extra=None):
+    """Renvoie (total_manual, total_mobile)."""
+    start, end = _today_range()
+    base_domain = [
+        ('paid_at', '>=', start),
+        ('paid_at', '<=', end),
+        ('payment_status', '=', 'success'),
+    ]
+    if domain_extra:
+        base_domain += domain_extra
+
+    logs = env['anpr.log'].sudo().search(base_domain)
+    t_manual = sum(l.amount for l in logs if l.payment_method == 'manual')
+    t_mobile = sum(l.amount for l in logs if l.payment_method == 'mobile')
+    return t_manual, t_mobile
+
 
 class AnprPeageController(http.Controller):
 
@@ -99,23 +124,56 @@ class AnprPeageController(http.Controller):
             for r in records
         ]
 
+    # Transactions de l'utilisateur 
+    @http.route('/anpr_peage/transactions_user', type='json', auth='user')
+    def transactions_user(self):
+        uid = request.env.user.id
+        recs = request.env['anpr.log'].sudo().search(
+            [('user_id', '=', uid)],
+            order='paid_at desc', limit=50
+        )
+        return [
+            {
+                'id': r.id,
+                'operator': request.env.user.name,
+                'plate': r.plate,
+                'date': r.paid_at.strftime("%d/%m/%Y") if r.paid_at else '',
+                'time': r.paid_at.strftime("%H:%M") if r.paid_at else '',
+                'amount': r.amount,
+            }
+            for r in recs
+        ]
+
+
     @http.route('/anpr_peage/pay_manuely', type='json', auth='user')
     def process_manual_payment(self, plate, vehicle_type, amount):
         try:
+            # Mapper le label reçu vers la valeur interne
+            valid_types = {
+                'Car': 'car',
+                '4x4': '4x4',
+                'Bus': 'bus',
+                'Camion': 'camion',
+                'Autres': 'autres',
+            }
+            internal_type = valid_types.get(vehicle_type, 'autres')  
+
             ticket_number = request.env['ir.sequence'].sudo().next_by_code('anpr.ticket.sequence')
 
             request.env['anpr.log'].sudo().create({
+                'user_id': request.env.user.id,
                 'plate': plate,
-                'vehicle_type': vehicle_type,
+                'vehicle_type': internal_type,
                 'amount': amount,
-                'transaction_message': "Paiement manuel effectue",
+                'transaction_message': "Paiement manuel effectué",
                 'payment_status': "success",
+                'payment_method': "manual",
                 'paid_at': fields.Datetime.now()
             })
 
             receipt = generate_receipt_content(
-                plate, vehicle_type, numero="MANUEL", amount=amount,
-                status_message="Paiement manuel effectue",
+                plate, internal_type, numero="MANUEL", amount=amount,
+                status_message="Paiement manuel effectué",
                 ticket_number=ticket_number
             )
 
@@ -134,11 +192,22 @@ class AnprPeageController(http.Controller):
                 'message': str(e)
             }
 
+
     @http.route('/anpr_peage/pay', type='json', auth='public', csrf=False)
     def process_payment(self, plate, vehicle_type, numero, amount):
         print("✅ Route /anpr_peage/pay appelée avec :", plate, vehicle_type, numero, amount)
 
         try:
+            # 💡 Traduire le label reçu en valeur interne
+            valid_types = {
+                'Car': 'car',
+                '4x4': '4x4',
+                'Bus': 'bus',
+                'Camion': 'camion',
+                'Autres': 'autres',
+            }
+            internal_type = valid_types.get(vehicle_type, 'autres')  # fallback
+
             payload = {'numero': numero, 'amount': amount}
             headers = {'Content-Type': 'application/x-www-form-urlencoded'}
 
@@ -175,16 +244,18 @@ class AnprPeageController(http.Controller):
 
             if payment_status == 'success':
                 request.env['anpr.log'].sudo().create({
+                    'user_id': request.env.user.id,
                     'plate': plate,
-                    'vehicle_type': vehicle_type,
+                    'vehicle_type': internal_type,
                     'amount': amount,
                     'transaction_message': status_message,
                     'payment_status': payment_status,
+                    'payment_method': "mobile",
                     'paid_at': fields.Datetime.now()
                 })
 
                 receipt = generate_receipt_content(
-                    plate, vehicle_type, numero, amount, status_message, ticket_number
+                    plate, internal_type, numero, amount, status_message, ticket_number
                 )
                 result_print = self.print_receipt_to_printer("192.168.1.114", 9100, receipt)
                 if result_print is not True:
@@ -201,3 +272,37 @@ class AnprPeageController(http.Controller):
                 'status': 'error',
                 'message': f"Erreur API : {e}"
             }
+
+
+    # Résumé de tout les paiements  
+    @http.route('/anpr_peage/summary_user', type='json', auth='user')
+    def summary_user(self):
+        user_id = request.env.user.id
+        t_manual, t_mobile = _totaux(request.env, [('user_id', '=', user_id)])
+        return {
+            'scope': 'user',
+            'user_id': user_id,
+            'manual': t_manual,
+            'mobile': t_mobile,
+            'overall': t_manual + t_mobile,
+        }
+
+    @http.route('/anpr_peage/summary_global', type='json', auth='user')
+    def summary_global(self):
+        t_manual, t_mobile = _totaux(request.env)
+        return {
+            'scope': 'global',
+            'manual': t_manual,
+            'mobile': t_mobile,
+            'overall': t_manual + t_mobile,
+        }
+
+
+    @http.route('/anpr_peage/get_current_user', type='json', auth='user', csrf=False)
+    def get_current_user(self):
+        try:
+            info = request.env['anpr.log'].sudo().get_current_user_info()
+            return info
+        except Exception as e:
+            # pour debug, renvoyer l’erreur
+            return {'error': True, 'message': str(e)}

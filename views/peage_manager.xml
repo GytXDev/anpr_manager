@@ -7,7 +7,19 @@
               name="OTECHPEAGE"
               sequence="10"/>
 
-    <!-- Action 1 : Vue Dashboard (vient maintenant en premier) -->
+    <!-- Action 0 : Vue OWL - Caisse -->
+    <record id="action_client_cash_drawer_screen" model="ir.actions.client">
+      <field name="name">Caisse</field>
+      <field name="tag">anpr_peage_cash_drawer_screen</field>
+    </record>
+
+    <menuitem id="menu_peage_cash_drawer_screen"
+              name="Caisse"
+              parent="menu_anpr_peage_root"
+              action="action_client_cash_drawer_screen"
+              sequence="1"/>
+
+    <!-- Action 1 : Vue OWL - Dashboard principal -->
     <record id="action_client_peage_dashboard" model="ir.actions.client">
       <field name="name">Tableau de bord Péage</field>
       <field name="tag">anpr_peage_dashboard</field>
@@ -17,21 +29,9 @@
               name="Tableau de bord"
               parent="menu_anpr_peage_root"
               action="action_client_peage_dashboard"
-              sequence="1"/>
+              sequence="2"/>
 
-    <!-- Action 2 : Vue Formulaire Péage -->
-    <!-- <record id="action_client_peage_screen" model="ir.actions.client">
-      <field name="name">Péage Ogooué Technologies</field>
-      <field name="tag">anpr_peage_manager</field>
-    </record> -->
-
-    <!-- <menuitem id="menu_owl_peage_screen"
-              name="Interface Péage"
-              parent="menu_anpr_peage_root"
-              action="action_client_peage_screen"
-              sequence="2"/> -->
-
-    <!-- Vue de liste seulement -->
+    <!-- Vue de liste : Transactions ANPR -->
     <record id="view_anpr_log_list" model="ir.ui.view">
       <field name="name">anpr.log.list</field>
       <field name="model">anpr.log</field>
@@ -47,7 +47,6 @@
       </field>
     </record>
 
-    <!-- Action de type fenêtre avec vue liste -->
     <record id="action_anpr_log_list_only" model="ir.actions.act_window">
       <field name="name">Historique des Transactions</field>
       <field name="res_model">anpr.log</field>
@@ -55,12 +54,11 @@
       <field name="view_id" ref="view_anpr_log_list"/>
     </record>
 
-    <!-- Menu dans OTECHPEAGE -->
     <menuitem id="menu_anpr_log_list"
               name="Historique des transactions"
               parent="menu_anpr_peage_root"
               action="action_anpr_log_list_only"
-              sequence="2"/>
+              sequence="3"/>
 
   </data>
 </odoo>
