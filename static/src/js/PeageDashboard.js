@@ -5,375 +5,219 @@ import { registry } from "@web/core/registry";
 import { rpc } from "@web/core/network/rpc";
 import { useService } from "@web/core/utils/hooks";
 
+// 🚗 Configuration unique pour types, labels, tarifs et catégories
+const VEHICLE_CONFIG = [
+    // code, label, tarif (CFA), catégorie
+    [0, "Autre", 1000, "Autres"],
+    [1, "Véhicule particulier", 1500, "Car"],
+    [2, "Camion", 28000, "Camion"],
+    [3, "Berline", 1500, "Car"],
+    [4, "Minivan", 5000, "4x4"],
+    [5, "Camion léger", 28000, "Camion"],
+    [7, "Deux-roues", 1000, "Autres"],
+    [8, "Tricycle", 1000, "Autres"],
+    [9, "SUV / MPV", 5000, "4x4"],
+    [10, "Bus moyen", 7000, "Bus"],
+    [11, "Véhicule motorisé", 1000, "Autres"],
+    [12, "Véhicule non motorisé", 1000, "Autres"],
+    [13, "Petite berline", 1500, "Car"],
+    [14, "Mini berline", 1500, "Car"],
+    [15, "Pickup", 5000, "4x4"],
+    [16, "Camion conteneur", 28000, "Camion"],
+    [17, "Mini camion / Remorque plateau", 28000, "Camion"],
+    [18, "Camion benne", 28000, "Camion"],
+    [19, "Grue / Véhicule de chantier", 28000, "Camion"],
+    [20, "Camion citerne", 28000, "Camion"],
+    [21, "Bétonnière", 28000, "Camion"],
+    [22, "Camion remorqueur", 28000, "Camion"],
+    [23, "Hatchback", 1500, "Car"],
+    [24, "Berline classique (Saloon)", 1500, "Car"],
+    [25, "Berline sport", 1500, "Car"],
+    [26, "Minibus", 7000, "Bus"],
+];
+const CODE_TO_LABEL = new Map(VEHICLE_CONFIG.map(([c, l]) => [c, l]));
+const CODE_TO_TARIFF = new Map(VEHICLE_CONFIG.map(([c, , t]) => [c, t]));
+const CODE_TO_CATEGORY = new Map(VEHICLE_CONFIG.map(([c, , , cat]) => [c, cat]));
+const LABEL_TO_CODE = new Map(VEHICLE_CONFIG.map(([c, l]) => [l, c]));
+
 export class PeageDashboard extends Component {
     static template = "anpr_peage_dashboard";
 
     setup() {
         this.notification = useService("notification");
-
-        this.tarifs = {
-            voiture: 200,
-            bus: 1000,
-            taxi: 700,
-            moto: 300,
-            camion: 1500,
-        };
-
         this.state = useState({
             transactions: [],
             date: this.formatDateTime(new Date()),
             detected_plate: null,
             detected_type: null,
+            detected_type_code: null,
+            detected_category: null,
             showModal: false,
             showMobileModal: false,
             hikcentral_error: false,
-            form: {
-                plate: "",
-                vehicle_type: "",
-                amount: 0,
-            },
-            mobileForm: {
-                plate: "",
-                vehicle_type: "",
-                numero: "",
-                amount: 0,
-            }
+            form: { plate: "", vehicle_type: "", amount: 0 },
+            mobileForm: { plate: "", vehicle_type: "", numero: "", amount: 0 },
+            inputTarget: "plate",
+            loading: false,
+            result_message: "",
+            payment_status: ""
         });
-
-        this.intervalId = null;
 
         onWillStart(async () => {
             try {
-                // ➡️ 1. Lancer automatiquement HikCentral au chargement de la page
                 const result = await rpc("/anpr_peage/start_hikcentral");
-                if (result.status === "success") {
-                    console.log("✅ HikCentral Listener démarré avec succès !");
-                    this.state.hikcentral_error = false; // Tout va bien
-                } else {
-                    console.error("❌ Erreur démarrage HikCentral :", result.message);
-                    this.state.hikcentral_error = true; // Problème détecté
-                }
-            } catch (error) {
-                console.error("❌ Impossible de démarrer HikCentral :", error);
-                this.state.hikcentral_error = true; // Problème détecté
+                this.state.hikcentral_error = result.status !== "success";
+                console.log(result.status === "success" ?
+                    "✅ HikCentral Listener démarré" :
+                    `❌ Erreur démarrage HikCentral: ${result.message}`);
+            } catch (e) {
+                console.error("❌ Impossible de démarrer HikCentral:", e);
+                this.state.hikcentral_error = true;
             }
-
-            // ➡️ 2. Charger les transactions normales
             try {
-                const result = await rpc("/anpr_peage/transactions");
-                this.state.transactions = result || [];
-            } catch (error) {
-                console.error("❌ Erreur lors du chargement des transactions :", error);
+                this.state.transactions = await rpc("/anpr_peage/transactions") || [];
+            } catch (e) {
+                console.error("❌ Erreur chargement transactions:", e);
             }
         });
-
-
 
         onMounted(() => {
-            // ⏰ Mettre à jour l'horloge en temps réel
-            this.intervalId = setInterval(() => {
-                this.state.date = this.formatDateTime(new Date());
-            }, 1000);
-
-            // 🛜 Nouvelle boucle pour interroger Flask en live
-            this.flaskInterval = setInterval(async () => {
-                try {
-                    const response = await fetch("https://127.0.0.1:8090/last_plate", { method: "GET" });
-                    if (response.ok) {
-                        const data = await response.json();
-                        if (data.plate) {
-                            this.state.detected_plate = data.plate;
-                            this.state.detected_type = this.vehicleTypeToString(data.vehicle_type);
-                            console.log(`📸 Nouvelle détection : ${data.plate} (${this.state.detected_type})`);
-                        }
-                    }
-                    else {
-                        console.error("❌ Erreur récupération /last_plate :", response.statusText);
-                    }
-                } catch (error) {
-                    console.error("❌ Impossible de contacter le serveur Flask :", error);
-                }
-            }, 1000); // toutes les 1 seconde
-
-            rpc("/anpr_peage/scroll_message", {
-                message: "*VFD DISPLAY PD220 * HAVE  A NICE DAY AND THANK ",
-                permanent: true
-            });
+            this._clock = setInterval(() => this.state.date = this.formatDateTime(new Date()), 1000);
+            this._flask = setInterval(this._fetchLastPlate.bind(this), 1000);
+            rpc("/anpr_peage/scroll_message", { message: "*VFD DISPLAY PD220 * HAVE A NICE DAY AND THANK", permanent: true });
         });
-
 
         onWillUnmount(() => {
-            clearInterval(this.intervalId);
-            clearInterval(this.flaskInterval);
+            clearInterval(this._clock);
+            clearInterval(this._flask);
         });
+    }
 
+    async _fetchLastPlate() {
+        try {
+            const resp = await fetch("https://127.0.0.1:8090/last_plate");
+            if (!resp.ok) throw new Error(resp.statusText);
+            const data = await resp.json();
+            if (data.plate) {
+                const code = data.vehicle_type;
+                const label = this.vehicleTypeToString(code);
+                const tariff = this.getAmountFromVehicleTypeCode(code);
+                const category = CODE_TO_CATEGORY.get(code) ?? "Inconnu";
+                this.state.detected_plate = data.plate;
+                this.state.detected_type_code = code;
+                this.state.detected_type = label;
+                this.state.detected_category = category;
+                this.state.form.amount = tariff;
+                this.state.mobileForm.amount = tariff;
+                console.log(`📸 ${data.plate} (${label}, catégorie : ${category}) -> ${tariff} CFA`);
+            }
+        } catch (e) {
+            console.error("❌ Fetch last_plate:", e);
+        }
     }
 
     formatDateTime(date) {
-        return date.toLocaleString("fr-FR", {
-            weekday: "short",
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-        });
+        return date.toLocaleString("fr-FR", { weekday: "short", year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" });
     }
 
     openManualModal() {
-        this.state.form = {
-            plate: this.state.detected_plate || "",
-            vehicle_type: this.state.detected_type || "",
-            amount: this.tarifs[this.state.detected_type] || 0,
-        };
+        const code = this.state.detected_type_code;
+        const label = this.vehicleTypeToString(code);
+        const amount = this.getAmountFromVehicleTypeCode(code);
+        const category = CODE_TO_CATEGORY.get(code) ?? "Inconnu";
+        this.state.form = { plate: this.state.detected_plate || "", vehicle_type: `${label} (${category})`, amount };
         this.state.showModal = true;
     }
 
-    closeModal() {
-        this.state.showModal = false;
-        rpc("/anpr_peage/scroll_message", {
-            message: "*VFD DISPLAY PD220 * HAVE  A NICE DAY AND THANK ",
-            permanent: true
-        });
-    }
-
     onVehicleTypeChangeModal(ev) {
-        const type = ev.target.value;
-        this.state.form.vehicle_type = type;
-        this.state.form.amount = this.tarifs[type] || 0;
-
-        rpc("/anpr_peage/scroll_message", {
-            message: `TOTAL: ${this.state.form.amount} CFA`,
-            permanent: true
-        });
+        const label = ev.target.value;
+        const code = this.getVehicleTypeCodeFromLabel(label);
+        const amount = this.getAmountFromVehicleTypeCode(code);
+        const category = CODE_TO_CATEGORY.get(code) ?? "Inconnu";
+        this.state.form.vehicle_type = `${label} (${category})`;
+        this.state.form.amount = amount;
+        rpc("/anpr_peage/scroll_message", { message: `TOTAL: ${amount} CFA`, permanent: true });
     }
 
-    onKeyboardKeyClick(ev) {
-        const key = ev.currentTarget.dataset.key;
-        this.state.form.plate += key;
+    openMobileMoneyModal() {
+        const code = this.state.detected_type_code;
+        const label = this.vehicleTypeToString(code);
+        const amount = this.getAmountFromVehicleTypeCode(code);
+        const category = CODE_TO_CATEGORY.get(code) ?? "Inconnu";
+        this.state.mobileForm = { plate: this.state.detected_plate || "", vehicle_type: `${label} (${category})`, numero: "", amount };
+        this.state.showMobileModal = true;
     }
 
-    clearPlate() {
-        this.state.form.plate = "";
+    onVehicleTypeChangeMobile(ev) {
+        const label = ev.target.value;
+        const code = this.getVehicleTypeCodeFromLabel(label);
+        const amount = this.getAmountFromVehicleTypeCode(code);
+        const category = CODE_TO_CATEGORY.get(code) ?? "Inconnu";
+        this.state.mobileForm.vehicle_type = `${label} (${category})`;
+        this.state.mobileForm.amount = amount;
+        rpc("/anpr_peage/scroll_message", { message: `TOTAL: ${amount} CFA`, permanent: true });
     }
 
     async confirmManualPayment() {
         const { plate, vehicle_type, amount } = this.state.form;
-        if (!plate || !vehicle_type || !amount) {
-            this.notification.add("Veuillez remplir tous les champs.", { type: "warning" });
-            return;
-        }
-
-        const now = new Date();
-        this.state.transactions.unshift({
-            id: this.state.transactions.length + 1,
-            operator: "Ogooué Technologies",
-            plate,
-            date: now.toLocaleDateString(),
-            time: now.toLocaleTimeString(),
-            amount,
-        });
-
+        if (!plate || !vehicle_type || !amount) return this.notification.add("Veuillez remplir tous les champs.", { type: "warning" });
+        this._addTransaction(plate, amount);
         try {
-            const result = await rpc("/anpr_peage/pay_manuely", { plate, vehicle_type, amount });
-
-            if (result.payment_status === "success") {
-                this.notification.add("✅ Paiement manuel enregistré avec succès.", { type: "success" });
+            const res = await rpc("/anpr_peage/pay_manuely", { plate, vehicle_type, amount });
+            if (res.payment_status === "success") {
+                this.notification.add("✅ Paiement manuel enregistré.", { type: "success" });
                 this.closeModal();
-                await rpc("/anpr_peage/scroll_message", { message: "MERCI ET BONNE JOURNEE" });
-                setTimeout(() => {
-                    rpc("/anpr_peage/scroll_message", {
-                        message: "*VFD DISPLAY PD220 * HAVE  A NICE DAY AND THANK ",
-                        permanent: true
-                    });
-                }, 5000);
-            } else {
-                this.notification.add("Échec du paiement : " + result.message, { type: "danger" });
-            }
-        } catch (error) {
-            console.error("❌ Erreur API :", error);
-            this.notification.add("Erreur de communication avec le serveur.", { type: "danger" });
+            } else this.notification.add(`Échec: ${res.message}`, { type: "danger" });
+        } catch {
+            this.notification.add("Erreur de communication.", { type: "danger" });
         }
-    }
-
-    openMobileMoneyModal() {
-        const type = this.state.detected_type;
-        this.state.mobileForm = {
-            plate: this.state.detected_plate || "",
-            vehicle_type: type || "",
-            numero: "",
-            amount: this.tarifs[type] || 0,
-        };
-        this.state.showMobileModal = true;
-    }
-
-    closeMobileModal() {
-        this.state.showMobileModal = false;
-        rpc("/anpr_peage/scroll_message", {
-            message: "*VFD DISPLAY PD220 * HAVE  A NICE DAY AND THANK ",
-            permanent: true
-        });
-    }
-
-    onMobileKeyClick(ev) {
-        const key = ev.currentTarget.dataset.key;
-        this.state.mobileForm.numero += key;
-    }
-
-    onKeyboardKeyClickMobile(ev) {
-        const key = ev.currentTarget.dataset.key;
-        const target = this.state.inputTarget;
-        if (target === "plate") this.state.mobileForm.plate += key;
-        else if (target === "numero") this.state.mobileForm.numero += key;
-    }
-
-    clearMobileInput() {
-        const target = this.state.inputTarget;
-        if (target === "plate") this.state.mobileForm.plate = "";
-        else if (target === "numero") this.state.mobileForm.numero = "";
-    }
-
-    onKeyboardKeyClickForMobilePlate(ev) {
-        const key = ev.currentTarget.dataset.key;
-        this.state.mobileForm.plate += key;
-    }
-
-    clearMobilePlate() {
-        this.state.mobileForm.plate = "";
-    }
-
-    onVehicleTypeChangeMobile(ev) {
-        const type = ev.target.value;
-        this.state.mobileForm.vehicle_type = type;
-        this.state.mobileForm.amount = this.tarifs[type] || 0;
-
-        rpc("/anpr_peage/scroll_message", {
-            message: `TOTAL: ${this.state.mobileForm.amount} CFA`,
-            permanent: true
-        });
     }
 
     async confirmMobileMoneyPayment() {
         const { plate, vehicle_type, numero, amount } = this.state.mobileForm;
-
-        if (!plate || !vehicle_type || !numero || !amount) {
-            this.notification.add("⚠️ Veuillez remplir tous les champs.", { type: "warning" });
-            return;
-        }
-
-        this.state.loading = true;
-
-        const now = new Date();
-        this.state.transactions.unshift({
-            id: this.state.transactions.length + 1,
-            operator: "Ogooué Technologies",
-            plate,
-            date: now.toLocaleDateString(),
-            time: now.toLocaleTimeString(),
-            amount,
-        });
-
+        if (!plate || !vehicle_type || !numero || !amount) return this.notification.add("⚠️ Remplis tous les champs.", { type: "warning" });
+        this._addTransaction(plate, amount);
         try {
-            const result = await rpc("/anpr_peage/pay", { plate, vehicle_type, numero, amount });
-            this.state.result_message = result.message;
-            this.state.payment_status = result.payment_status || "unknown";
-
-            if (this.state.payment_status === "success") {
-                this.notification.add("✅ Paiement Mobile Money réussi !", { type: "success" });
-                this.closeMobileModal();
-                await rpc("/anpr_peage/scroll_message", { message: "MERCI ET BONNE JOURNEE" });
-                setTimeout(() => {
-                    rpc("/anpr_peage/scroll_message", {
-                        message: "*VFD DISPLAY PD220 * HAVE  A NICE DAY AND THANK ",
-                        permanent: true
-                    });
-                }, 5000);
-            } else if (this.state.payment_status === "cancelled") {
-                this.notification.add("❌ Paiement annulé.", { type: "danger" });
-            } else {
-                this.notification.add("⚠️ Échec du paiement : " + this.state.result_message, { type: "warning" });
-            }
-
-        } catch (error) {
-            console.error("Erreur de paiement :", error);
-            this.state.result_message = "Erreur de communication avec le serveur.";
-            this.state.payment_status = "failed";
-            this.notification.add("❌ Erreur réseau : Veuillez vérifier votre connexion.", { type: "danger" });
+            const res = await rpc("/anpr_peage/pay", { plate, vehicle_type, numero, amount });
+            this.notification.add(res.payment_status === "success" ? "✅ Paiement réussi!" : `⚠️ ${res.message}`, { type: res.payment_status === "success" ? "success" : "warning" });
+            if (res.payment_status === "success") this.closeMobileModal();
+        } catch {
+            this.notification.add("❌ Erreur réseau.", { type: "danger" });
         }
+    }
 
-        this.state.loading = false;
+    _addTransaction(plate, amount) {
+        const now = new Date();
+        this.state.transactions.unshift({ id: this.state.transactions.length + 1, operator: "Ogooué Technologies", plate, date: now.toLocaleDateString(), time: now.toLocaleTimeString(), amount });
+    }
+
+    closeModal() {
+        this.state.showModal = false;
+        rpc("/anpr_peage/scroll_message", { message: "*VFD DISPLAY PD220 * HAVE A NICE DAY AND THANK", permanent: true });
+    }
+
+    closeMobileModal() {
+        this.state.showMobileModal = false;
+        rpc("/anpr_peage/scroll_message", { message: "*VFD DISPLAY PD220 * HAVE A NICE DAY AND THANK", permanent: true });
     }
 
     getAmountLabel() {
-        return this.tarifs[this.state.detected_type] || 500;
+        return this.getAmountFromVehicleTypeCode(this.state.detected_type_code);
     }
 
-    vehicleTypeToString(type) {
-        switch (type) {
-            case 0:
-                return "Autre";
-            case 1:
-                return "Véhicule particulier";
-            case 2:
-                return "Camion";
-            case 3:
-                return "Berline";
-            case 4:
-                return "Minivan";
-            case 5:
-                return "Camion léger";
-            case 6:
-                return "Piéton";
-            case 7:
-                return "Deux-roues";
-            case 8:
-                return "Tricycle";
-            case 9:
-                return "SUV / MPV";
-            case 10:
-                return "Bus moyen";
-            case 11:
-                return "Véhicule motorisé";
-            case 12:
-                return "Véhicule non motorisé";
-            case 13:
-                return "Petite berline";
-            case 14:
-                return "Mini berline";
-            case 15:
-                return "Pickup";
-            case 16:
-                return "Camion conteneur";
-            case 17:
-                return "Mini camion / Remorque plateau";
-            case 18:
-                return "Camion benne";
-            case 19:
-                return "Grue / Véhicule de chantier";
-            case 20:
-                return "Camion citerne";
-            case 21:
-                return "Bétonnière";
-            case 22:
-                return "Camion remorqueur";
-            case 23:
-                return "Hatchback";
-            case 24:
-                return "Berline classique (Saloon)";
-            case 25:
-                return "Berline sport";
-            case 26:
-                return "Minibus";
-            default:
-                return "Inconnu";
-        }
+    vehicleTypeToString(code) {
+        return CODE_TO_LABEL.get(code) ?? "Inconnu";
     }
 
-
-    onExportExcel() {
-        this.notification.add("📤 Export Excel déclenché !", { type: "info" });
+    getAmountFromVehicleTypeCode(code) {
+        return CODE_TO_TARIFF.get(code) ?? 1000;
     }
+
+    getVehicleTypeCodeFromLabel(label) {
+        return LABEL_TO_CODE.get(label) ?? 0;
+    }
+
+   
 }
 
 registry.category("actions").add("anpr_peage_dashboard", PeageDashboard);
