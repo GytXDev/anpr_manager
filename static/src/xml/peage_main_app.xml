@@ -1,0 +1,12 @@
+<templates xml:space="preserve">
+  <t t-name="anpr_peage_main" owl="1">
+    <!-- Affiche directement l'écran Caisse -->
+    <t t-if="state.screen === 'cash'">
+      <CashDrawerScreen t-props="{ switchScreen }"/>
+    </t>
+    <!-- On pourra plus tard switcher vers le dashboard -->
+    <t t-if="state.screen === 'dashboard'">
+      <PeageDashboard t-props="{ switchScreen }"/>
+    </t>
+  </t>
+</templates>

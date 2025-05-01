@@ -2,36 +2,25 @@
 <odoo>
   <data>
 
-    <!-- Menu principal -->
+    <!-- Menu principal unique -->
     <menuitem id="menu_anpr_peage_root"
               name="OTECHPEAGE"
               sequence="10"/>
 
-    <!-- Action 0 : Vue OWL - Caisse -->
-    <record id="action_client_cash_drawer_screen" model="ir.actions.client">
+    <!-- Action principale qui charge toute l'app (caisse + dashboard) -->
+    <record id="action_client_peage_main" model="ir.actions.client">
       <field name="name">Caisse</field>
-      <field name="tag">anpr_peage_cash_drawer_screen</field>
+      <field name="tag">anpr_peage_main</field>
     </record>
 
-    <menuitem id="menu_peage_cash_drawer_screen"
+    <!-- Le menu racine appelle directement la vue main_app -->
+    <menuitem id="menu_peage_main"
               name="Caisse"
               parent="menu_anpr_peage_root"
-              action="action_client_cash_drawer_screen"
+              action="action_client_peage_main"
               sequence="1"/>
 
-    <!-- Action 1 : Vue OWL - Dashboard principal -->
-    <record id="action_client_peage_dashboard" model="ir.actions.client">
-      <field name="name">Tableau de bord Péage</field>
-      <field name="tag">anpr_peage_dashboard</field>
-    </record>
-
-    <menuitem id="menu_peage_dashboard"
-              name="Tableau de bord"
-              parent="menu_anpr_peage_root"
-              action="action_client_peage_dashboard"
-              sequence="2"/>
-
-    <!-- Vue de liste : Transactions ANPR -->
+    <!-- Vue de liste : Historique des Transactions ANPR -->
     <record id="view_anpr_log_list" model="ir.ui.view">
       <field name="name">anpr.log.list</field>
       <field name="model">anpr.log</field>
@@ -58,7 +47,7 @@
               name="Historique des transactions"
               parent="menu_anpr_peage_root"
               action="action_anpr_log_list_only"
-              sequence="3"/>
+              sequence="2"/>
 
   </data>
 </odoo>

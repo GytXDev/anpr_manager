@@ -7,6 +7,7 @@ import { useService } from "@web/core/utils/hooks";
 
 export class CashDrawerScreen extends Component {
     static template = "anpr_peage_cash_drawer_screen";
+    static props = ["switchScreen"];
 
     setup() {
         this.notification = useService("notification");
@@ -70,6 +71,8 @@ export class CashDrawerScreen extends Component {
     }
 
     onOpenCash() {
+        // on passe à l'écran "dashboard"
+        this.props.switchScreen("dashboard");
         this.notification.add(`Caisse ouverte avec ${this.state.openingAmount} CFA`, {
             type: "success",
         });
