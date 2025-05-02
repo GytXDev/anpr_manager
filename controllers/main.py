@@ -3,6 +3,7 @@ from odoo import http, fields
 from odoo.http import request
 import requests
 import socket
+from pytz import timezone
 from datetime import datetime, time
 import serial
 import logging
@@ -36,6 +37,9 @@ def _totaux(env, domain_extra=None):
     t_manual = sum(l.amount for l in logs if l.payment_method == 'manual')
     t_mobile = sum(l.amount for l in logs if l.payment_method == 'mobile')
     return t_manual, t_mobile
+
+def now_gabon():
+    return datetime.now(timezone("Africa/Libreville")).replace(tzinfo=None)
 
 
 class AnprPeageController(http.Controller):
@@ -168,7 +172,7 @@ class AnprPeageController(http.Controller):
                 'transaction_message': "Paiement manuel effectué",
                 'payment_status': "success",
                 'payment_method': "manual",
-                'paid_at': fields.Datetime.now()
+                'paid_at': now_gabon()
             })
 
             receipt = generate_receipt_content(
@@ -251,7 +255,7 @@ class AnprPeageController(http.Controller):
                     'transaction_message': status_message,
                     'payment_status': payment_status,
                     'payment_method': "mobile",
-                    'paid_at': fields.Datetime.now()
+                    'paid_at': now_gabon()
                 })
 
                 receipt = generate_receipt_content(

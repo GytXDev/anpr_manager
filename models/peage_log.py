@@ -1,5 +1,6 @@
 # anpr_peage_manager\models\peage_log.py
 from odoo import models, fields, api
+import pytz
 from datetime import datetime
 
 class AnprLog(models.Model):
@@ -31,12 +32,15 @@ class AnprLog(models.Model):
     transaction_message = fields.Text(string="Message de transaction")
     amount = fields.Float(string="Montant payé")
     paid_at = fields.Datetime(string="Date de paiement")
-    created_at = fields.Datetime(string="Date de création", default=lambda self: fields.Datetime.now())
+    created_at = fields.Datetime(
+        string="Date de création",
+        default=lambda self: datetime.now(pytz.timezone("Africa/Libreville")).replace(tzinfo=None)
+    )
 
     def mark_as_success(self, message):
         self.payment_status = 'success'
         self.transaction_message = message
-        self.paid_at = datetime.now()
+        self.paid_at = datetime.now(pytz.timezone("Africa/Libreville")).replace(tzinfo=None)
 
     def mark_as_failed(self, message):
         self.payment_status = 'failed'

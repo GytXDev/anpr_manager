@@ -9,14 +9,19 @@
           <img src="/anpr_peage_manager/static/src/img/logo_ogooue.png" class="header-logo me-2"/>
           <span class="dashboard-title">OTECHPEAGE</span>
         </div>
-        <div class="text-muted small" t-esc="state.date"/>
+  
+        <div class="d-flex align-items-center gap-3">
+          <div class="text-muted small" t-esc="state.date"/>
+          <button class="btn btn-outline-danger btn-sm" t-on-click="closeCashDrawer">
+            <i class="fa fa-lock me-1"></i> Fermer la caisse
+          </button>
+        </div>
       </div>
 
       <!-- Contenu principal -->
       <div class="d-flex flex-wrap" style="gap: 20px;">
         <!-- Liste des transactions -->
         <div class="flex-grow-1" style="min-width: 500px;">
-          <h5 class="mb-3">Liste des transactions</h5>
 
           <div class="d-flex fw-bold border-bottom pb-1 mb-2 small text-uppercase">
             <div class="flex-fill">Opérateur</div>
@@ -42,11 +47,13 @@
         <!-- Clavier rapide -->
         <div style="width: 300px;" class="ps-3">
           <div class="border rounded p-3 bg-white d-flex flex-column gap-3">
-            <div class="text-center fw-bold text-primary">
+            <div class="text-center py-3 rounded border" style="background-color: #f8f9fa;">
               <t t-if="state.detected_type">
-                Montant : <t t-esc="getAmountLabel()"/> CFA
+                <div class="fs-6 text-dark">
+                  <strong><t t-esc="state.detected_type"/></strong>
+                  <span class="text-muted"> — <t t-esc="state.detected_category"/></span>
+                </div>
               </t>
-              <t t-else="">Aucun type détecté</t>
             </div>
             <button class="btn btn-secondary" t-on-click="openManualModal">
               Payer manuellement
@@ -65,8 +72,6 @@
           <div class="modal-content bg-white p-4 rounded shadow"
                style="width: 700px; margin:auto; top:15%; position:fixed; left:0; right:0; z-index:1055;">
 
-            <h5 class="mb-3">Paiement Manuel</h5>
-
             <div class="d-flex justify-content-between" style="gap: 20px;">
               <div style="flex: 1;">
                 <div class="mb-3">
@@ -76,13 +81,16 @@
 
                 <div class="mb-3">
                   <label class="form-label">Type de véhicule</label>
-                  <select class="form-select" t-model="state.form.vehicle_type" t-on-change="onVehicleTypeChangeModal">
-                      <option value="">-- Sélectionner --</option>
-                      <t t-foreach="vehicleCategories" t-as="cat" t-key="cat">
-                          <option t-att-value="cat" t-esc="cat"/>
-                      </t>
-                  </select>
-
+                  <div class="vehicle-grid">
+                    <t t-foreach="vehicleCategories" t-as="cat" t-key="cat">
+                      <div class="vehicle-tile"
+                          t-att-class="{ 'selected': state.form.vehicle_type === cat }"
+                          t-on-click="() => this.selectVehicleType(cat)">
+                        <img t-att-src="'/anpr_peage_manager/static/src/img/' + cat + '.png'" alt="" class="vehicle-icon"/>
+                        <div class="vehicle-label"><t t-esc="cat"/></div>
+                      </div>
+                    </t>
+                  </div>
                 </div>
 
                 <div class="mb-3">
@@ -127,8 +135,6 @@
           <div class="modal-content bg-white p-4 rounded shadow"
               style="width: 700px; margin:auto; top:15%; position:fixed; left:0; right:0; z-index:1055;">
 
-            <h5 class="mb-3">Paiement Mobile Money</h5>
-
             <div class="d-flex justify-content-between" style="gap: 20px;">
               <div style="flex: 1;">
                 <div class="mb-3">
@@ -148,15 +154,19 @@
                 </div>
 
                 <div class="mb-3">
-                  <label class="form-label">Type de véhicule</label>
-                  <select class="form-select" t-model="state.mobileForm.vehicle_type" t-on-change="onVehicleTypeChangeMobile">
-                      <option value="">-- Sélectionner --</option>
-                      <t t-foreach="vehicleCategories" t-as="cat" t-key="cat">
-                          <option t-att-value="cat" t-esc="cat"/>
-                      </t>
-                  </select>
-
+                <label class="form-label">Type de véhicule</label>
+                <div class="vehicle-grid">
+                  <t t-foreach="vehicleCategories" t-as="cat" t-key="cat">
+                    <div class="vehicle-tile"
+                        t-att-class="{ 'selected': state.mobileForm.vehicle_type === cat }"
+                       t-on-click="() => this.selectVehicleTypeMobile(cat)">
+                      <img t-att-src="'/anpr_peage_manager/static/src/img/' + cat + '.png'" alt="" class="vehicle-icon"/>
+                      <div class="vehicle-label"><t t-esc="cat"/></div>
+                    </div>
+                  </t>
                 </div>
+              </div>
+
 
                 <div class="mb-3">
                   <label class="form-label">Montant à payer (CFA)</label>
@@ -207,6 +217,21 @@
           </div>
         </t>
 
+
+      <t t-if="state.showCloseConfirm">
+        <div class="modal-backdrop fade show"
+            style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1040;"></div>
+
+        <div class="modal-content bg-white p-4 rounded shadow"
+            style="width: 500px; margin:auto; top:25%; position:fixed; left:0; right:0; z-index:1055; text-align:center;">
+          <h5 class="mb-3">Confirmer la fermeture de la caisse ?</h5>
+          <p class="text-muted">Toutes les transactions en cours seront enregistrées.</p>
+          <div class="d-flex justify-content-center gap-3 mt-4">
+            <button class="btn btn-secondary" t-on-click="cancelCloseCashDrawer">Annuler</button>
+            <button class="btn btn-danger" t-on-click="confirmCloseCashDrawer">Oui, fermer</button>
+          </div>
+        </div>
+      </t>
     </div>
   </t>
 </templates>

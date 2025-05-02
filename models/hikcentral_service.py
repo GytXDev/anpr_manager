@@ -10,7 +10,7 @@ import logging
 
 _logger = logging.getLogger(__name__)
 
-# ⚡ Configuration Artemis
+# Configuration Artemis
 APP_KEY = '28702134'
 APP_SECRET = '0Wq6WMBkDAOwcCFywSoO'
 ARTEMIS_URL = 'https://127.0.0.1'
@@ -21,7 +21,7 @@ EVENT_DEST_URL = 'https://127.0.0.1:8090/eventRcv'
 EVENT_TYPES = [131622]
 TOKEN = 'qscasd'
 
-# 🔒 Ignorer les warnings SSL auto-signé
+# Ignorer les warnings SSL auto-signé
 requests.packages.urllib3.disable_warnings()
 
 # ======= GÉNÉRER SIGNATURE AK/SK =======

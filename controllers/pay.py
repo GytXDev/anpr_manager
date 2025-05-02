@@ -1,5 +1,6 @@
 # anpr_peage_manager/controllers/pay.py
 from odoo import _
+from pytz import timezone
 from datetime import datetime
 import textwrap
 import logging
@@ -24,7 +25,7 @@ def generate_receipt_content(plate, vehicle_type, numero, amount, status_message
     Génère le contenu ESC/POS du reçu avec un code-barres CODE39 basé sur la plaque.
     """
 
-    now = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+    now = datetime.now(timezone("Africa/Libreville")).strftime("%d/%m/%Y %H:%M:%S")
     show_numero = numero != "MANUEL"
 
     # Texte du reçu

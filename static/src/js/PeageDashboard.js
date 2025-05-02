@@ -50,6 +50,8 @@ export class PeageDashboard extends Component {
         this.vehicleCategories = Array.from(new Set(VEHICLE_CONFIG.map(([, , , cat]) => cat)));
         this.state = useState({
             transactions: [],
+            closingAmount: 0,
+            showCloseConfirm: false,
             date: this.formatDateTime(new Date()),
             detected_plate: null,
             detected_type: null,
@@ -135,28 +137,29 @@ export class PeageDashboard extends Component {
         const label = this.vehicleTypeToString(code);
         const amount = this.getAmountFromVehicleTypeCode(code);
         const category = CODE_TO_CATEGORY.get(code) ?? "Inconnu";
-        this.state.form = { plate: this.state.detected_plate || "", vehicle_type: `${label} (${category})`, amount };
+        this.state.form = {
+            plate: this.state.detected_plate || "",
+            vehicle_type: category,
+            amount
+        };
         this.state.showModal = true;
     }
 
     closeModal() {
         this.state.showModal = false;
+        this.resetForms();
         rpc("/anpr_peage/scroll_message", {
             message: "*VFD DISPLAY PD220 * HAVE  A NICE DAY AND THANK ",
             permanent: true
         });
     }
 
-    onVehicleTypeChangeModal(ev) {
-        const category = ev.target.value;
-        const amount = CATEGORY_TO_TARIFF.get(category) ?? 1500;
-
-        this.state.form.vehicle_type = category;
-        this.state.form.amount = amount;
-
+    selectVehicleType(cat) {
+        this.state.form.vehicle_type = cat;
+        this.state.form.amount = CATEGORY_TO_TARIFF.get(cat) ?? 1500;
         rpc("/anpr_peage/scroll_message", {
-            message: `TOTAL: ${amount} CFA`,
-            permanent: true
+            message: `TOTAL: ${this.state.form.amount} CFA`,
+            permanent: true,
         });
     }
 
@@ -192,19 +195,25 @@ export class PeageDashboard extends Component {
         const label = this.vehicleTypeToString(code);
         const amount = this.getAmountFromVehicleTypeCode(code);
         const category = CODE_TO_CATEGORY.get(code) ?? "Inconnu";
-        this.state.mobileForm = { plate: this.state.detected_plate || "", vehicle_type: `${label} (${category})`, numero: "", amount };
+        this.state.mobileForm = {
+            plate: this.state.detected_plate || "",
+            vehicle_type: category,
+            numero: "",
+            amount
+        };
+
         this.state.showMobileModal = true;
     }
 
-    onVehicleTypeChangeMobile(ev) {
-        const label = ev.target.value;
-        const code = this.getVehicleTypeCodeFromLabel(label);
-        const amount = this.getAmountFromVehicleTypeCode(code);
-        const category = CODE_TO_CATEGORY.get(code) ?? "Inconnu";
-        this.state.mobileForm.vehicle_type = `${label} (${category})`;
-        this.state.mobileForm.amount = amount;
-        rpc("/anpr_peage/scroll_message", { message: `TOTAL: ${amount} CFA`, permanent: true });
+    selectVehicleTypeMobile(cat) {
+        this.state.mobileForm.vehicle_type = cat;
+        this.state.mobileForm.amount = CATEGORY_TO_TARIFF.get(cat) ?? 1500;
+        rpc("/anpr_peage/scroll_message", {
+            message: `TOTAL: ${this.state.mobileForm.amount} CFA`,
+            permanent: true,
+        });
     }
+
 
     async confirmManualPayment() {
         const { plate, vehicle_type, amount } = this.state.form;
@@ -265,8 +274,24 @@ export class PeageDashboard extends Component {
 
     _addTransaction(plate, amount) {
         const now = new Date();
-        this.state.transactions.unshift({ id: this.state.transactions.length + 1, operator: "Ogooué Technologies", plate, date: now.toLocaleDateString(), time: now.toLocaleTimeString(), amount });
+
+        // Appliquer le fuseau horaire de Libreville (UTC+1)
+        const optionsDate = { timeZone: "Africa/Libreville", day: "2-digit", month: "2-digit", year: "numeric" };
+        const optionsTime = { timeZone: "Africa/Libreville", hour: "2-digit", minute: "2-digit", hour12: false };
+
+        const date = now.toLocaleDateString("fr-FR", optionsDate);
+        const time = now.toLocaleTimeString("fr-FR", optionsTime);
+
+        this.state.transactions.unshift({
+            id: this.state.transactions.length + 1,
+            operator: this.state.user?.name || "Opérateur",
+            plate,
+            date,
+            time,
+            amount
+        });
     }
+
 
     closeModal() {
         this.state.showModal = false;
@@ -275,6 +300,7 @@ export class PeageDashboard extends Component {
 
     closeMobileModal() {
         this.state.showMobileModal = false;
+        this.resetForms();
         rpc("/anpr_peage/scroll_message", { message: "*VFD DISPLAY PD220 * HAVE A NICE DAY AND THANK", permanent: true });
     }
 
@@ -292,6 +318,27 @@ export class PeageDashboard extends Component {
 
     getVehicleTypeCodeFromLabel(label) {
         return LABEL_TO_CODE.get(label) ?? 0;
+    }
+
+    closeCashDrawer() {
+        this.state.showCloseConfirm = true;
+    }
+
+    confirmCloseCashDrawer() {
+        this.props.switchScreen("cash");
+        this.notification.add(`Caisse fermée ${this.state.closingAmount} CFA`, {
+            type: "success",
+        });
+        this.state.showCloseConfirm = false;
+    }
+
+    cancelCloseCashDrawer() {
+        this.state.showCloseConfirm = false;
+    }
+
+    resetForms() {
+        this.state.form = { plate: "", vehicle_type: "", amount: 0 };
+        this.state.mobileForm = { plate: "", vehicle_type: "", numero: "", amount: 0 };
     }
 
 

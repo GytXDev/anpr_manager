@@ -38,3 +38,57 @@
     background: rgba(0, 0, 0, 0.4);
     z-index: 1040;
 }
+
+.btn-outline-danger.btn-sm {
+    font-size: 0.85rem;
+    padding: 4px 10px;
+}
+
+
+.vehicle-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+    gap: 10px;
+}
+
+.vehicle-tile {
+    background-color: #f0f0f0;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+}
+
+.vehicle-tile:hover {
+    background-color: #e9ecef;
+}
+
+.vehicle-tile.selected {
+    border-color: #198754;
+    /* Bootstrap success */
+    background-color: #d1e7dd;
+}
+
+.vehicle-icon {
+    height: 32px;
+    object-fit: contain;
+    margin-bottom: 4px;
+}
+
+.vehicle-label {
+    font-size: 0.85rem;
+    color: #333;
+}
+
+@media (max-width: 768px) {
+    .vehicle-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .modal-content {
+        width: 90% !important;
+        top: 10% !important;
+    }
+}
