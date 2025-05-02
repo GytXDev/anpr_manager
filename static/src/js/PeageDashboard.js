@@ -50,6 +50,9 @@ export class PeageDashboard extends Component {
         this.vehicleCategories = Array.from(new Set(VEHICLE_CONFIG.map(([, , , cat]) => cat)));
         this.state = useState({
             transactions: [],
+            paginated: [],
+            currentPage: 1,
+            itemsPerPage: 7,
             closingAmount: 0,
             showCloseConfirm: false,
             date: this.formatDateTime(new Date()),
@@ -82,6 +85,7 @@ export class PeageDashboard extends Component {
             try {
                 const result = await rpc("/anpr_peage/transactions_user");
                 this.state.transactions = result || [];
+                this.paginateTransactions();
             } catch (error) {
                 console.error("Erreur lors du chargement des transactions :", error);
             }
@@ -290,6 +294,7 @@ export class PeageDashboard extends Component {
             time,
             amount
         });
+        this.paginateTransactions();
     }
 
 
@@ -341,6 +346,20 @@ export class PeageDashboard extends Component {
         this.state.mobileForm = { plate: "", vehicle_type: "", numero: "", amount: 0 };
     }
 
+    paginateTransactions() {
+        const start = (this.state.currentPage - 1) * this.state.itemsPerPage;
+        const end = start + this.state.itemsPerPage;
+        this.state.paginated = this.state.transactions.slice(start, end);
+    }
+
+    changePage(delta) {
+        const newPage = this.state.currentPage + delta;
+        const totalPages = Math.ceil(this.state.transactions.length / this.state.itemsPerPage);
+        if (newPage >= 1 && newPage <= totalPages) {
+            this.state.currentPage = newPage;
+            this.paginateTransactions();
+        }
+    }
 
 }
 

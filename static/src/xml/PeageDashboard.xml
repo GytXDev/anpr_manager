@@ -32,7 +32,7 @@
           </div>
 
           <div class="transaction-list">
-            <t t-foreach="state.transactions" t-as="tx" t-key="tx.id">
+            <t t-foreach="state.paginated" t-as="tx" t-key="tx.id">
               <div class="d-flex transaction-line">
                 <div class="flex-fill" t-esc="tx.operator"/>
                 <div class="flex-fill" t-esc="tx.plate"/>
@@ -42,6 +42,17 @@
               </div>
             </t>
           </div>
+
+          <div class="text-center mt-2" t-if="state.transactions.length > state.itemsPerPage">
+            <button class="btn btn-sm btn-outline-secondary me-2"
+                    t-on-click="() => this.changePage(-1)"
+                    t-att-disabled="state.currentPage === 1">Précédent</button>
+            <span class="mx-2">Page <t t-esc="state.currentPage"/></span>
+            <button class="btn btn-sm btn-outline-secondary"
+                    t-on-click="() => this.changePage(1)"
+                    t-att-disabled="(state.currentPage * state.itemsPerPage) >= state.transactions.length">Suivant</button>
+          </div>
+
         </div>
 
         <!-- Clavier rapide -->

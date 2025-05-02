@@ -41,8 +41,62 @@ def _totaux(env, domain_extra=None):
 def now_gabon():
     return datetime.now(timezone("Africa/Libreville")).replace(tzinfo=None)
 
-
 class AnprPeageController(http.Controller):
+
+    def _create_account_move(self, amount, payment_method, plate, user_name):
+        env = request.env
+        journal_code = 'PEAGE' if payment_method == 'manual' else 'PEAGE_MM'
+        debit_account_code = '512100'  # Exemple : Banque
+        credit_account_code = '706100'  # Exemple : Produits Péage
+
+        # Vérifie ou crée le journal
+        journal = env['account.journal'].sudo().search([('code', '=', journal_code)], limit=1)
+        if not journal:
+            journal = env['account.journal'].sudo().create({
+                'name': f'Péage {"Mobile" if payment_method == "mobile" else "Manuel"}',
+                'code': journal_code,
+                'type': 'cash',
+                'company_id': env.company.id,
+            })
+
+        # Vérifie ou crée les comptes comptables
+        debit_account = env['account.account'].sudo().search([('code', '=', debit_account_code)], limit=1)
+        if not debit_account:
+            debit_account = env['account.account'].sudo().create({
+                'name': 'Banque (Péage)',
+                'code': debit_account_code,
+                'account_type': 'asset_cash',
+            })
+
+        credit_account = env['account.account'].sudo().search([('code', '=', credit_account_code)], limit=1)
+        if not credit_account:
+            credit_account = env['account.account'].sudo().create({
+                'name': 'Produits Péage',
+                'code': credit_account_code,
+                'account_type': 'income',
+            })
+
+        # Création de la pièce comptable
+        move = env['account.move'].sudo().create({
+            'journal_id': journal.id,
+            'ref': f'Paiement {plate} - {user_name}',
+            'date': now_gabon().date(),
+            'line_ids': [
+                (0, 0, {
+                    'name': f'Paiement péage {plate}',
+                    'account_id': debit_account.id,
+                    'debit': amount,
+                    'credit': 0.0,
+                }),
+                (0, 0, {
+                    'name': f'Recette péage {plate}',
+                    'account_id': credit_account.id,
+                    'debit': 0.0,
+                    'credit': amount,
+                }),
+            ],
+        })
+        return move
 
     def print_receipt_to_printer(self, ip_address, port, content):
         try:
@@ -175,6 +229,8 @@ class AnprPeageController(http.Controller):
                 'paid_at': now_gabon()
             })
 
+            self._create_account_move(amount, "manual", plate, request.env.user.name)
+
             receipt = generate_receipt_content(
                 plate, internal_type, numero="MANUEL", amount=amount,
                 status_message="Paiement manuel effectué",
@@ -257,6 +313,7 @@ class AnprPeageController(http.Controller):
                     'payment_method': "mobile",
                     'paid_at': now_gabon()
                 })
+                self._create_account_move(amount, "mobile", plate, request.env.user.name)
 
                 receipt = generate_receipt_content(
                     plate, internal_type, numero, amount, status_message, ticket_number
