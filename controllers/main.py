@@ -46,8 +46,8 @@ class AnprPeageController(http.Controller):
     def _create_account_move(self, amount, payment_method, plate, user_name):
         env = request.env
         journal_code = 'PEAGE' if payment_method == 'manual' else 'PEAGE_MM'
-        debit_account_code = '512100'  # Exemple : Banque
-        credit_account_code = '706100'  # Exemple : Produits Péage
+        debit_account_code = '512100'  # Banque
+        credit_account_code = '706100'  # Produits Péage
 
         # Vérifie ou crée le journal
         journal = env['account.journal'].sudo().search([('code', '=', journal_code)], limit=1)

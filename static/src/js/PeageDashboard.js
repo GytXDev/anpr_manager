@@ -249,7 +249,7 @@ export class PeageDashboard extends Component {
         if (!plate || !vehicle_type || !numero || !amount)
             return this.notification.add("Remplis tous les champs.", { type: "warning" });
 
-        this.state.loading = true; // Bloquer pendant le paiement
+        this.state.loading = true;
 
         try {
             const res = await rpc("/anpr_peage/pay", {
@@ -278,36 +278,48 @@ export class PeageDashboard extends Component {
 
     _addTransaction(plate, amount) {
         const now = new Date();
+        const id = Date.now();  // Identifiant unique côté client
 
-        // Appliquer le fuseau horaire de Libreville (UTC+1)
-        const optionsDate = { timeZone: "Africa/Libreville", day: "2-digit", month: "2-digit", year: "numeric" };
-        const optionsTime = { timeZone: "Africa/Libreville", hour: "2-digit", minute: "2-digit", hour12: false };
+        const optionsDate = {
+            timeZone: "Africa/Libreville",
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric"
+        };
+        const optionsTime = {
+            timeZone: "Africa/Libreville",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false
+        };
 
         const date = now.toLocaleDateString("fr-FR", optionsDate);
         const time = now.toLocaleTimeString("fr-FR", optionsTime);
 
         this.state.transactions.unshift({
-            id: this.state.transactions.length + 1,
+            id,
             operator: this.state.user?.name || "Opérateur",
             plate,
             date,
             time,
             amount
         });
+
         this.paginateTransactions();
     }
 
-
-    closeModal() {
-        this.state.showModal = false;
-        rpc("/anpr_peage/scroll_message", { message: "*VFD DISPLAY PD220 * HAVE A NICE DAY AND THANK", permanent: true });
-    }
 
     closeMobileModal() {
         this.state.showMobileModal = false;
         this.resetForms();
         rpc("/anpr_peage/scroll_message", { message: "*VFD DISPLAY PD220 * HAVE A NICE DAY AND THANK", permanent: true });
     }
+
+    handleError(error) {
+        console.error("Owl Error caught:", error);
+        this.notification.add("Une erreur est survenue", { type: "danger" });
+    }
+
 
     getAmountLabel() {
         return this.getAmountFromVehicleTypeCode(this.state.detected_type_code);
@@ -360,6 +372,7 @@ export class PeageDashboard extends Component {
             this.paginateTransactions();
         }
     }
+
 
 }
 
