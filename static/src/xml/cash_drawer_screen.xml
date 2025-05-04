@@ -10,20 +10,28 @@
       <!-- Nom -->
       <h2 class="user-name"><t t-esc="state.userName"/></h2>
 
-      <!-- Montant (total caissier) -->
-      <p class="amount-label">Total encaissé aujourd’hui</p>
-      <p class="amount-value"><t t-esc="state.userTotals.overall"/> CFA</p>
+      <!-- Totaux alignés en ligne -->
+      <div class="totals-row">
+        <!-- Total du jour -->
+        <div class="block-total">
+          <p class="amount-label">Total encaissé aujourd’hui</p>
+          <p class="amount-value"><t t-esc="state.userTotals.total_day"/> CFA</p>
+          <div class="totals-box">
+            <span>Manuel : <t t-esc="state.userTotals.manual_day"/> CFA</span> |
+            <span>Mobile : <t t-esc="state.userTotals.mobile_day"/> CFA</span>
+          </div>
+        </div>
 
-      <!-- Détail -->
-      <div class="totals-box">
-        <span>Manuel : <t t-esc="state.userTotals.manual"/> CFA</span> |
-        <span>Mobile : <t t-esc="state.userTotals.mobile"/> CFA</span>
+        <!-- Total cumulé -->
+        <div class="block-total">
+          <p class="amount-label">Total cumulé (ce caissier)</p>
+          <p class="amount-value small"><t t-esc="state.userTotals.total_all"/> CFA</p>
+          <div class="totals-box small">
+            <span>Manuel : <t t-esc="state.userTotals.manual_total"/> CFA</span> |
+            <span>Mobile : <t t-esc="state.userTotals.mobile_total"/> CFA</span>
+          </div>
+        </div>
       </div>
-
-      <!-- Global -->
-      <!-- <div class="totals-box small mt-2">
-        Global : <t t-esc="state.globalTotals.overall"/> CFA
-      </div> -->
 
       <!-- Bouton -->
       <button class="btn-open mt-4" t-on-click="onOpenCash">
@@ -34,6 +42,7 @@
       <div class="date-display">
         <t t-esc="formatDateTime(state.currentTime)"/>
       </div>
+
     </div>
   </t>
 </templates>

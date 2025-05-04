@@ -32,6 +32,7 @@ class AnprLog(models.Model):
     transaction_message = fields.Text(string="Message de transaction")
     amount = fields.Float(string="Montant payé")
     paid_at = fields.Datetime(string="Date de paiement")
+    accounted = fields.Boolean(string="Comptabilisé", default=False)
     created_at = fields.Datetime(
         string="Date de création",
         default=lambda self: datetime.now(pytz.timezone("Africa/Libreville")).replace(tzinfo=None)

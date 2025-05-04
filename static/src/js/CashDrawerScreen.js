@@ -67,7 +67,7 @@ export class CashDrawerScreen extends Component {
         this.state.userTotals = userSum;
         this.state.globalTotals = globalSum;
         /* pour compatibilité avec l’ancien “openingAmount” */
-        this.state.openingAmount = userSum.overall;
+        this.state.openingAmount = userSum.manual_total;
     }
 
     onOpenCash() {

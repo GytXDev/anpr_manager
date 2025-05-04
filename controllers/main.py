@@ -21,6 +21,21 @@ def _today_range():
     end   = datetime.combine(today, time.max)   # 23:59:59
     return start, end
 
+def _totaux_all_time(env, domain_extra=None):
+    """Renvoie (total_manual, total_mobile) sans filtrer par date."""
+    base_domain = [
+        ('payment_status', '=', 'success'),
+        ('accounted', '=', False),  # Ne prendre que celles non comptabilisées
+    ]
+
+    if domain_extra:
+        base_domain += domain_extra
+
+    logs = env['anpr.log'].sudo().search(base_domain)
+    t_manual = sum(l.amount for l in logs if l.payment_method == 'manual')
+    t_mobile = sum(l.amount for l in logs if l.payment_method == 'mobile')
+    return t_manual, t_mobile
+
 
 def _totaux(env, domain_extra=None):
     """Renvoie (total_manual, total_mobile)."""
@@ -29,6 +44,7 @@ def _totaux(env, domain_extra=None):
         ('paid_at', '>=', start),
         ('paid_at', '<=', end),
         ('payment_status', '=', 'success'),
+        ('accounted', '=', False),
     ]
     if domain_extra:
         base_domain += domain_extra
@@ -339,14 +355,24 @@ class AnprPeageController(http.Controller):
     @http.route('/anpr_peage/summary_user', type='json', auth='user')
     def summary_user(self):
         user_id = request.env.user.id
-        t_manual, t_mobile = _totaux(request.env, [('user_id', '=', user_id)])
+
+        # Totaux du jour
+        t_manual_day, t_mobile_day = _totaux(request.env, [('user_id', '=', user_id)])
+
+        # Totaux cumulés du caissier (tous les jours)
+        t_manual_all, t_mobile_all = _totaux_all_time(request.env, [('user_id', '=', user_id)])
+
         return {
             'scope': 'user',
             'user_id': user_id,
-            'manual': t_manual,
-            'mobile': t_mobile,
-            'overall': t_manual + t_mobile,
+            'manual_day': t_manual_day,
+            'mobile_day': t_mobile_day,
+            'total_day': t_manual_day + t_mobile_day,
+            'manual_total': t_manual_all,
+            'mobile_total': t_mobile_all,
+            'total_all': t_manual_all + t_mobile_all,
         }
+
 
     @http.route('/anpr_peage/summary_global', type='json', auth='user')
     def summary_global(self):

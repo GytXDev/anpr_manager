@@ -130,3 +130,33 @@
     color: #ffffff;
     opacity: 0.8;
 }
+
+.totals-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2rem;
+    justify-content: center;
+    margin: 2rem 0;
+    width: 100%;
+    max-width: 800px;
+}
+
+.block-total {
+    flex: 1 1 300px;
+    background-color: rgba(255, 255, 255, 0.1);
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
+}
+
+.block-total:hover {
+    transform: scale(1.01);
+}
+
+.divider {
+    width: 60%;
+    border: 0;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.3);
+    margin: 1.5rem 0;
+}
