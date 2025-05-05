@@ -7,8 +7,8 @@
         <img t-att-src="state.userAvatar" class="avatar-img"/>
       </div>
 
-      <!-- Nom -->
-      <h2 class="user-name"><t t-esc="state.userName"/></h2>
+      <!-- Nom
+      <h2 class="user-name"><t t-esc="state.userName"/></h2> -->
 
       <!-- Totaux alignés en ligne -->
       <div class="totals-row">

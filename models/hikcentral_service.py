@@ -17,7 +17,7 @@ ARTEMIS_URL = 'https://192.168.1.50'
 SUBSCRIBE_ENDPOINT = '/artemis/api/eventService/v1/eventSubscriptionByEventTypes'
 UNSUBSCRIBE_ENDPOINT = '/artemis/api/eventService/v1/eventUnSubscriptionByEventTypes'
 
-EVENT_DEST_URL = 'https://192.168.1.68:8090/eventRcv'
+EVENT_DEST_URL = 'https://localhost:8090/eventRcv'
 EVENT_TYPES = [131622]
 TOKEN = 'qscasd'
 

@@ -25,7 +25,7 @@ def _totaux_all_time(env, domain_extra=None):
     """Renvoie (total_manual, total_mobile) sans filtrer par date."""
     base_domain = [
         ('payment_status', '=', 'success'),
-        ('accounted', '=', False),  # Ne prendre que celles non comptabilisées
+        ('accounted', '=', True),  # Ne prendre que celles non comptabilisées
     ]
 
     if domain_extra:
@@ -44,7 +44,7 @@ def _totaux(env, domain_extra=None):
         ('paid_at', '>=', start),
         ('paid_at', '<=', end),
         ('payment_status', '=', 'success'),
-        ('accounted', '=', False),
+        ('accounted', '=', True),
     ]
     if domain_extra:
         base_domain += domain_extra
@@ -112,6 +112,9 @@ class AnprPeageController(http.Controller):
                 }),
             ],
         })
+
+        # ➜ Validation immédiate
+        move.action_post()
         return move
 
     def print_receipt_to_printer(self, ip_address, port, content):
