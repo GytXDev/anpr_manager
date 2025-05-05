@@ -168,7 +168,7 @@ class AnprPeageController(http.Controller):
     def get_last_detected_plate(self):
         try:
             # Aller lire les données depuis le serveur Flask
-            response = requests.get('https://127.0.0.1:8090/last_plate', verify=False, timeout=5)
+            response = requests.get('https://localhost:8090/last_plate', verify=False, timeout=5)
             if response.status_code == 200:
                 data = response.json()
                 return {

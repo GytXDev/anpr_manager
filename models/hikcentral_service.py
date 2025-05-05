@@ -11,13 +11,13 @@ import logging
 _logger = logging.getLogger(__name__)
 
 # Configuration Artemis
-APP_KEY = '28702134'
-APP_SECRET = '0Wq6WMBkDAOwcCFywSoO'
-ARTEMIS_URL = 'https://127.0.0.1'
+APP_KEY = '26838323'
+APP_SECRET = 'xAuqYNE9gbiUnuyYvuKb'
+ARTEMIS_URL = 'https://192.168.1.50'
 SUBSCRIBE_ENDPOINT = '/artemis/api/eventService/v1/eventSubscriptionByEventTypes'
 UNSUBSCRIBE_ENDPOINT = '/artemis/api/eventService/v1/eventUnSubscriptionByEventTypes'
 
-EVENT_DEST_URL = 'https://127.0.0.1:8090/eventRcv'
+EVENT_DEST_URL = 'https://192.168.1.68:8090/eventRcv'
 EVENT_TYPES = [131622]
 TOKEN = 'qscasd'
 
