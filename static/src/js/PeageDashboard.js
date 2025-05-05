@@ -341,6 +341,15 @@ export class PeageDashboard extends Component {
         this.state.showCloseConfirm = true;
     }
 
+    async fetchTodayTotals() {
+        /* résumé caissier */
+        const userSum = await rpc("/anpr_peage/summary_user");
+
+        /* pour compatibilité avec l’ancien “openingAmount” */
+        this.state.closingAmount = userSum.manual_total;
+    }
+
+
     confirmCloseCashDrawer() {
         this.props.switchScreen("cash");
         this.notification.add(`Caisse fermée ${this.state.closingAmount} CFA`, {

@@ -5,7 +5,9 @@
     <!-- Menu principal unique -->
     <menuitem id="menu_anpr_peage_root"
               name="OTECHPEAGE"
-              sequence="10"/>
+              sequence="10"
+              web_icon="anpr_peage_manager,static/description/icon.png"
+              />
 
     <!-- Action principale qui charge toute l'app (caisse + dashboard) -->
     <record id="action_client_peage_main" model="ir.actions.client">
