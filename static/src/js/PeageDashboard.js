@@ -73,14 +73,30 @@ export class PeageDashboard extends Component {
 
         onWillStart(async () => {
             try {
+                // 🔹 Charger l'utilisateur
+                const userInfo = await rpc('/anpr_peage/get_current_user');
+                this.state.user = userInfo;
+
+                // 🔹 Essayer de démarrer le listener HikCentral
                 const result = await rpc("/anpr_peage/start_hikcentral");
                 this.state.hikcentral_error = result.status !== "success";
-                console.log(result.status === "success" ?
-                    "HikCentral Listener démarré" :
-                    `Erreur démarrage HikCentral: ${result.message}`);
+
+                if (this.state.hikcentral_error) {
+                    this.notification.add(
+                        `Bonjour ${this.state.user?.name || "utilisateur"} — le service HikCentral n'est pas actif. Vérifiez la connexion Artemis.`,
+                        { type: "warning", sticky: true }
+                    );
+                } else {
+                    console.log("HikCentral Listener démarré");
+                }
+
             } catch (e) {
-                console.error("Impossible de démarrer HikCentral:", e);
                 this.state.hikcentral_error = true;
+                this.notification.add(
+                    "Erreur lors de la tentative de démarrage de HikCentral.",
+                    { type: "danger", sticky: true }
+                );
+                console.error("Erreur HikCentral/User:", e);
             }
             try {
                 const result = await rpc("/anpr_peage/transactions_user");

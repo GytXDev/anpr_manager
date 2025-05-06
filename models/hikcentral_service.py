@@ -17,7 +17,7 @@ ARTEMIS_URL = 'https://192.168.1.50'
 SUBSCRIBE_ENDPOINT = '/artemis/api/eventService/v1/eventSubscriptionByEventTypes'
 UNSUBSCRIBE_ENDPOINT = '/artemis/api/eventService/v1/eventUnSubscriptionByEventTypes'
 
-EVENT_DEST_URL = 'https://localhost:8090/eventRcv'
+EVENT_DEST_URL = 'https://192.168.1.69:8090/eventRcv'
 EVENT_TYPES = [131622]
 TOKEN = 'qscasd'
 
@@ -64,7 +64,8 @@ def subscribe_to_events():
         "eventTypes": EVENT_TYPES,
         "eventDest": EVENT_DEST_URL,
         "token": TOKEN,
-        "passBack": 0
+        "passBack": 0,
+        "srcIndexCodes": ["51"]
     }
 
     try:
