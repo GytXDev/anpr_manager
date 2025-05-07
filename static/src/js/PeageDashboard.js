@@ -77,6 +77,23 @@ export class PeageDashboard extends Component {
                 const userInfo = await rpc('/anpr_peage/get_current_user');
                 this.state.user = userInfo;
 
+                // 🔍 Diagnostic Artemis
+                const diag = await rpc("/anpr_peage/hikcentral_status");
+                console.log("📡 Diagnostic Artemis :", diag);
+                if (diag.status !== 'ok') {
+                    this.notification.add(`❌ Paramètres manquants : ${diag.message}`, {
+                        type: "warning",
+                        sticky: true,
+                    });
+                }
+
+                const flaskStatus = await rpc("/anpr_peage/flask_status");
+                if (flaskStatus.status === "ok" && flaskStatus.flask_url) {
+                    this.state.flask_url = flaskStatus.flask_url;
+                } else {
+                    this.notification.add("❌ flask_url manquant ou non configuré.", { type: "warning", sticky: true });
+                }
+
                 // 🔹 Essayer de démarrer le listener HikCentral
                 const result = await rpc("/anpr_peage/start_hikcentral");
                 this.state.hikcentral_error = result.status !== "success";
@@ -105,12 +122,6 @@ export class PeageDashboard extends Component {
             } catch (error) {
                 console.error("Erreur lors du chargement des transactions :", error);
             }
-            try {
-                const userInfo = await rpc('/anpr_peage/get_current_user');
-                this.state.user = userInfo;
-            } catch (error) {
-                console.error("Erreur lors de la récupération de l'utilisateur");
-            }
         });
 
         onMounted(() => {
@@ -127,26 +138,37 @@ export class PeageDashboard extends Component {
 
     async _fetchLastPlate() {
         try {
-            const resp = await fetch("https://127.0.0.1:8090/last_plate");
-            if (!resp.ok) throw new Error(resp.statusText);
-            const data = await resp.json();
+            const baseUrl = this.state.flask_url || 'https://127.0.0.1:8090';
+            const url = `${baseUrl}/last_plate`;
+
+            const resp = await fetch(url);
+            const text = await resp.text();
+            const data = JSON.parse(text);
+
+            // 👉 N'afficher que s’il y a une plaque
             if (data.plate) {
                 const code = data.vehicle_type;
                 const label = this.vehicleTypeToString(code);
                 const tariff = this.getAmountFromVehicleTypeCode(code);
                 const category = CODE_TO_CATEGORY.get(code) ?? "Inconnu";
+
                 this.state.detected_plate = data.plate;
                 this.state.detected_type_code = code;
                 this.state.detected_type = label;
                 this.state.detected_category = category;
                 this.state.form.amount = tariff;
                 this.state.mobileForm.amount = tariff;
+
                 console.log(`📸 ${data.plate} (${label}, catégorie : ${category}) -> ${tariff} CFA`);
             }
+
         } catch (e) {
-            console.error(" Fetch last_plate:", e);
+            // silence les erreurs réseau si aucune plaque, utile en dev
+            // console.error("⛔ Fetch last_plate:", e);
         }
     }
+
+
 
     formatDateTime(date) {
         return date.toLocaleString("fr-FR", { weekday: "short", year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" });

@@ -10,10 +10,11 @@
     """,
     'author': 'Ogooué Technologies',
     'website': 'https://ogoouetech.com',
-    'depends': ['base', 'web', 'account'],
+    'depends': ['base', 'web', 'account', 'base_setup'],
     'data': [
         'security/ir.model.access.csv',
         'views/peage_manager.xml',
+        'views/res_config_settings_view.xml',
         'data/sequence.xml',
     ],
     'assets': {
@@ -35,4 +36,5 @@
     'installable': True,
     'application': True,
     'auto_install': False,
+    'license': 'LGPL-3',
 }

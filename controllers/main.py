@@ -117,7 +117,11 @@ class AnprPeageController(http.Controller):
         move.action_post()
         return move
 
-    def print_receipt_to_printer(self, ip_address, port, content):
+    def print_receipt_to_printer(self, content):
+        user = request.env.user
+        ip_address = user.printer_ip
+        port = int(user.printer_port or 9100)
+
         try:
             s = socket.socket()
             s.settimeout(10)
@@ -127,6 +131,9 @@ class AnprPeageController(http.Controller):
             return True
         except Exception as e:
             return str(e)
+
+
+
 
     def scroll_vfd(self, raw_message, permanent=False):
         try:
@@ -169,9 +176,11 @@ class AnprPeageController(http.Controller):
     # Nouvelle route pour récupérer la dernière plaque détectée
     @http.route('/anpr_peage/last_detected_plate', type='json', auth='public', csrf=False)
     def get_last_detected_plate(self):
+        user = request.env.user
+        flask_url = user.flask_url
+
         try:
-            # Aller lire les données depuis le serveur Flask
-            response = requests.get('https://192.168.1.69:8090/last_plate', verify=False, timeout=5)
+            response = requests.get(f"{flask_url}/last_plate", verify=False, timeout=5)
             if response.status_code == 200:
                 data = response.json()
                 return {
@@ -256,7 +265,7 @@ class AnprPeageController(http.Controller):
                 ticket_number=ticket_number
             )
 
-            result_print = self.print_receipt_to_printer("192.168.1.114", 9100, receipt)
+            result_print = self.print_receipt_to_printer(receipt)
             if result_print is not True:
                 print(f"❌ Erreur impression POS : {result_print}")
 
@@ -275,6 +284,8 @@ class AnprPeageController(http.Controller):
     @http.route('/anpr_peage/pay', type='json', auth='public', csrf=False)
     def process_payment(self, plate, vehicle_type, numero, amount):
         print("✅ Route /anpr_peage/pay appelée avec :", plate, vehicle_type, numero, amount)
+        user = request.env.user
+        ip_address = user.printer_ip
 
         try:
             # 💡 Traduire le label reçu en valeur interne
@@ -291,7 +302,7 @@ class AnprPeageController(http.Controller):
             headers = {'Content-Type': 'application/x-www-form-urlencoded'}
 
             response = requests.post(
-                'https://gytx.dev/api/airtelmoney-web.php',
+                payment_api_url,
                 data=payload,
                 headers=headers,
                 timeout=30
@@ -337,7 +348,7 @@ class AnprPeageController(http.Controller):
                 receipt = generate_receipt_content(
                     plate, internal_type, numero, amount, status_message, ticket_number
                 )
-                result_print = self.print_receipt_to_printer("192.168.1.114", 9100, receipt)
+                result_print = self.print_receipt_to_printer(receipt)
                 if result_print is not True:
                     print(f"❌ Erreur impression POS : {result_print}")
 
@@ -396,3 +407,63 @@ class AnprPeageController(http.Controller):
         except Exception as e:
             # pour debug, renvoyer l’erreur
             return {'error': True, 'message': str(e)}
+
+    
+    # Status de la souscription ANPR
+    @http.route('/anpr_peage/hikcentral_status', type='json', auth='user')
+    def get_hikcentral_status(self):
+        try:
+            user = request.env.user
+            config = {
+                'app_key': user.artemis_app_key,
+                'app_secret': user.artemis_app_secret,
+                'artemis_url': user.artemis_url,
+                'event_dest_url': user.artemis_event_dest_url,
+                'token': user.artemis_token,
+                'src_codes': user.artemis_event_src_codes,
+            }
+
+            missing = [k for k, v in config.items() if not v]
+            if missing:
+                return {
+                    'status': 'error',
+                    'message': f"Paramètres manquants : {missing}"
+                }
+
+            return {
+                'status': 'ok',
+                'message': f"Configuration Artemis OK pour {user.name}",
+                'config': config
+            }
+
+        except Exception as e:
+            return {'status': 'error', 'message': str(e)}
+
+    @http.route('/anpr_peage/flask_status', type='json', auth='user')
+    def get_flask_status(self):
+        try:
+            user = request.env.user
+            flask_url = user.flask_url
+
+            if not flask_url:
+                return {
+                    'status': 'error',
+                    'message': "Paramètre manquant : flask_url"
+                }
+
+            # Vérifie que le listener répond bien
+            response = requests.get(f"{flask_url}/last_plate", verify=False, timeout=5)
+            if response.status_code == 200:
+                return {
+                    'status': 'ok',
+                    'message': f"Flask actif à {flask_url}",
+                    'flask_url': flask_url
+                }
+            else:
+                return {
+                    'status': 'error',
+                    'message': f"Flask ne répond pas correctement à {flask_url}"
+                }
+
+        except Exception as e:
+            return {'status': 'error', 'message': str(e)}

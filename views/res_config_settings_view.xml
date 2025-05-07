@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+  <record id="view_config_settings_form_anpr_peage" model="ir.ui.view">
+    <field name="name">anpr.peage.config.settings</field>
+    <field name="model">res.config.settings</field>
+    <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+    <field name="arch" type="xml">
+      <xpath expr="//form" position="inside">
+        <app string="Paramètres ANPR &amp; Paiement" name="anpr_peage_manager">
+          <block title="Configuration Artemis, Flask &amp; Paiement">
+
+            <!-- ARTEMIS -->
+            <setting string="Clé App Artemis" help="Clé publique fournie par le serveur Artemis">
+              <field name="artemis_app_key"/>
+            </setting>
+            <setting string="Secret App Artemis" help="Clé secrète fournie par le serveur Artemis">
+              <field name="artemis_app_secret"/>
+            </setting>
+            <setting string="URL Artemis" help="Adresse complète du serveur Artemis (ex: https://192.168.1.50)">
+              <field name="artemis_url"/>
+            </setting>
+            <setting string="Token" help="Token utilisé pour sécuriser les événements entrants">
+              <field name="artemis_token"/>
+            </setting>
+            <setting string="Liste caméras ANPR" help="IndexCode des caméras ANPR à écouter (ex: 51,44)">
+              <field name="artemis_event_src_codes"/>
+            </setting>
+
+            <!-- FLASK -->
+            <setting string="URL Flask (eventDest)" help="URL de votre serveur Flask qui reçoit les événements ANPR">
+              <field name="artemis_event_dest_url"/>
+            </setting>
+            <setting string="URL du Serveur Flask" help="Lien vers le serveur Flask pour consulter la dernière plaque détectée">
+              <field name="flask_url"/>
+            </setting>
+
+            <!-- PAIEMENT & IMPRESSION -->
+            <setting string="URL API Paiement Mobile Money" help="Lien vers le script de paiement Mobile Money (ex: https://gytx.dev/api/airtelmoney-web.php)">
+              <field name="payment_api_url"/>
+            </setting>
+            <setting string="Adresse IP Imprimante" help="Adresse IP de l’imprimante POS (ex: 192.168.1.114)">
+              <field name="printer_ip"/>
+            </setting>
+            <setting string="Port Imprimante" help="Port TCP de l’imprimante POS (souvent 9100)">
+              <field name="printer_port"/>
+            </setting>
+
+          </block>
+        </app>
+      </xpath>
+    </field>
+  </record>
+</odoo>

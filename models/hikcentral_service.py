@@ -1,4 +1,5 @@
 # anpr_peage_manager/models/hikcentral_service.py
+
 import threading
 import requests
 import time
@@ -10,21 +11,13 @@ import logging
 
 _logger = logging.getLogger(__name__)
 
-# Configuration Artemis
-APP_KEY = '26838323'
-APP_SECRET = 'xAuqYNE9gbiUnuyYvuKb'
-ARTEMIS_URL = 'https://192.168.1.50'
+requests.packages.urllib3.disable_warnings()
+
+EVENT_TYPES = [131622]
 SUBSCRIBE_ENDPOINT = '/artemis/api/eventService/v1/eventSubscriptionByEventTypes'
 UNSUBSCRIBE_ENDPOINT = '/artemis/api/eventService/v1/eventUnSubscriptionByEventTypes'
 
-EVENT_DEST_URL = 'https://192.168.1.69:8090/eventRcv'
-EVENT_TYPES = [131622]
-TOKEN = 'qscasd'
 
-# Ignorer les warnings SSL auto-signé
-requests.packages.urllib3.disable_warnings()
-
-# ======= GÉNÉRER SIGNATURE AK/SK =======
 def generate_headers(app_key, app_secret, method, path):
     timestamp = str(int(time.time() * 1000))
     string_to_sign = f"{method}\n*/*\napplication/json\nx-ca-key:{app_key}\nx-ca-timestamp:{timestamp}\n{path}"
@@ -32,7 +25,7 @@ def generate_headers(app_key, app_secret, method, path):
     digest = hmac.new(app_secret.encode('utf-8'), string_to_sign.encode('utf-8'), digestmod=hashlib.sha256).digest()
     signature = base64.b64encode(digest).decode('utf-8')
 
-    headers = {
+    return {
         'Accept': '*/*',
         'Content-Type': 'application/json',
         'x-ca-key': app_key,
@@ -40,62 +33,71 @@ def generate_headers(app_key, app_secret, method, path):
         'x-ca-timestamp': timestamp,
         'x-ca-signature-headers': 'x-ca-key,x-ca-timestamp'
     }
-    return headers
 
-# ======= DÉSABONNER =======
-def unsubscribe_from_events():
-    url = ARTEMIS_URL + UNSUBSCRIBE_ENDPOINT
-    method = 'POST'
-    headers = generate_headers(APP_KEY, APP_SECRET, method, UNSUBSCRIBE_ENDPOINT)
-    payload = {"eventTypes": EVENT_TYPES}
 
-    try:
-        response = requests.post(url, headers=headers, json=payload, verify=False)
-        _logger.info(f"📡 Unsubscribe Status: {response.status_code} | {response.text}")
-    except Exception as e:
-        _logger.error(f"❌ Error during unsubscribe: {e}")
-
-# ======= S'ABONNER =======
-def subscribe_to_events():
-    url = ARTEMIS_URL + SUBSCRIBE_ENDPOINT
-    method = 'POST'
-    headers = generate_headers(APP_KEY, APP_SECRET, method, SUBSCRIBE_ENDPOINT)
-    payload = {
-        "eventTypes": EVENT_TYPES,
-        "eventDest": EVENT_DEST_URL,
-        "token": TOKEN,
-        "passBack": 0,
-        "srcIndexCodes": ["51"]
-    }
-
-    try:
-        response = requests.post(url, headers=headers, json=payload, verify=False)
-        _logger.info(f"📡 Subscribe Status: {response.status_code} | {response.text}")
-    except Exception as e:
-        _logger.error(f"❌ Error during subscribe: {e}")
-
-# ======= MAINTENANCE DE L'ABONNEMENT =======
-def subscription_maintenance_loop():
-    while True:
-        _logger.info("🔄 Refresh de la subscription Artemis...")
-        unsubscribe_from_events()
-        time.sleep(1)
-        subscribe_to_events()
-        _logger.info("✅ Nouvelle subscription active.")
-        time.sleep(120)  # 2 minutes
-
-# ======= SERVICE PRINCIPAL ODOO =======
 class HikcentralService(models.AbstractModel):
     _name = 'hikcentral.service'
     _description = "Service d'intégration Hikcentral ANPR"
 
+    def _get_user_config(self):
+        user = self.env.user
+
+        return {
+            'app_key': user.artemis_app_key,
+            'app_secret': user.artemis_app_secret,
+            'artemis_url': user.artemis_url,
+            'event_dest_url': user.artemis_event_dest_url,
+            'token': user.artemis_token,
+            'src_codes': user.artemis_event_src_codes.split(",") if user.artemis_event_src_codes else [],
+        }
+
+    def unsubscribe_from_events(self, config):
+        url = config['artemis_url'] + UNSUBSCRIBE_ENDPOINT
+        headers = generate_headers(config['app_key'], config['app_secret'], 'POST', UNSUBSCRIBE_ENDPOINT)
+        payload = {"eventTypes": EVENT_TYPES}
+        try:
+            response = requests.post(url, headers=headers, json=payload, verify=False)
+            _logger.info(f"📡 Unsubscribe Status: {response.status_code} | {response.text}")
+        except Exception as e:
+            _logger.error(f"❌ Error during unsubscribe: {e}")
+
+    def subscribe_to_events(self, config):
+        url = config['artemis_url'] + SUBSCRIBE_ENDPOINT
+        headers = generate_headers(config['app_key'], config['app_secret'], 'POST', SUBSCRIBE_ENDPOINT)
+        payload = {
+            "eventTypes": EVENT_TYPES,
+            "eventDest": config['event_dest_url'],
+            "token": config['token'],
+            "passBack": 0,
+            # "srcIndexCodes": config['src_codes']
+        }
+        try:
+            response = requests.post(url, headers=headers, json=payload, verify=False)
+            _logger.info(f"📡 Subscribe Status: {response.status_code} | {response.text}")
+        except Exception as e:
+            _logger.error(f"❌ Error during subscribe: {e}")
+
+    def subscription_loop(self, config):
+        while True:
+            _logger.info("🔄 Rafraîchissement de la souscription Artemis...")
+            self.unsubscribe_from_events(config)
+            time.sleep(1)
+            self.subscribe_to_events(config)
+            _logger.info("✅ Nouvelle souscription active.")
+            time.sleep(120)
+
     @api.model
     def start_hikcentral_listener(self):
-        _logger.info("🚀 Début de la gestion des subscriptions Artemis...")
+        try:
+            config = self._get_user_config()
+        except Exception as e:
+            _logger.error(f"⚠️ Impossible de récupérer la configuration utilisateur : {e}")
+            return
 
-        # Lancer juste la boucle de subscription (PAS le serveur Flask)
-        subscription_thread = threading.Thread(target=subscription_maintenance_loop)
-        subscription_thread.daemon = True
-        subscription_thread.start()
+        _logger.info(f"🚀 Démarrage du listener Artemis pour l'utilisateur {self.env.user.name}...")
 
-        _logger.info("✅ Service Artemis de subscription démarré.")
+        thread = threading.Thread(target=self.subscription_loop, args=(config,))
+        thread.daemon = True
+        thread.start()
+
+        _logger.info("✅ Service de souscription Artemis démarré.")

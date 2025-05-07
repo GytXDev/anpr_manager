@@ -22,6 +22,20 @@
               action="action_client_peage_main"
               sequence="1"/>
 
+    <!-- <record id="action_anpr_settings" model="ir.actions.act_window">
+        <field name="name">Configuration Péage</field>
+        <field name="res_model">res.config.settings</field>
+        <field name="view_mode">form</field>
+        <field name="target">inline</field>
+        <field name="context">{'module' : 'anpr_peage_manager'}</field>
+    </record>
+
+    <menuitem id="menu_anpr_settings"
+              name="Paramètres"
+              parent="menu_anpr_peage_root"
+              action="action_anpr_settings"
+              sequence="99"/> -->
+
     <!-- Vue de liste : Historique des Transactions ANPR -->
     <!-- <record id="view_anpr_log_list" model="ir.ui.view">
       <field name="name">anpr.log.list</field>
