@@ -14,7 +14,6 @@ _logger = logging.getLogger(__name__)
 DISPLAY_WIDTH = 20
 SCROLL_DELAY = 0.2
 
-
 def _today_range():
     today = fields.Date.today()
     start = datetime.combine(today, time.min)   # 00:00:00
@@ -79,7 +78,7 @@ class AnprPeageController(http.Controller):
         debit_account = env['account.account'].sudo().search([('code', '=', debit_account_code)], limit=1)
         if not debit_account:
             debit_account = env['account.account'].sudo().create({
-                'name': 'Banque (Péage)',
+                'name': 'Caisse (Péage)',
                 'code': debit_account_code,
                 'account_type': 'asset_cash',
             })
@@ -133,27 +132,23 @@ class AnprPeageController(http.Controller):
             return str(e)
 
 
-
-
     def scroll_vfd(self, raw_message, permanent=False):
+        user = request.env.user 
+        vfd_url = user.vfd_url
         try:
-            ser = serial.Serial("COM3", 9600, timeout=1)
-            ser.write(b'\x0C')
-            if permanent:
-                message = raw_message.ljust(DISPLAY_WIDTH)[:DISPLAY_WIDTH]
-                ser.write(message.encode('cp850', errors='replace'))
+            payload = {
+                "message": raw_message,
+                "permanent": permanent
+            }
+            response = requests.post(vfd_url, json=payload, timeout=5)
+
+            if response.status_code == 200:
+                return True
             else:
-                text = raw_message.replace("\n", " ")
-                buffer = text + " " * DISPLAY_WIDTH
-                for i in range(len(buffer) - DISPLAY_WIDTH + 1):
-                    window = buffer[i: i + DISPLAY_WIDTH]
-                    ser.write(b'\x0C')
-                    ser.write(window.encode('cp850', errors='replace'))
-                    time.sleep(SCROLL_DELAY)
-            ser.close()
-            return True
+                _logger.warning("Erreur lors de l'envoi au serveur VFD distant : %s", response.text)
+                return False
         except Exception as e:
-            _logger.warning("Afficheur non connecté ou inaccessible : %s", e)
+            _logger.warning("Impossible de contacter le serveur VFD distant : %s", e)
             return str(e)
 
     @http.route('/anpr_peage/scroll_message', type='json', auth='public', csrf=False)
@@ -206,6 +201,7 @@ class AnprPeageController(http.Controller):
                 'date': r.paid_at.strftime("%d/%m/%Y") if r.paid_at else '',
                 'time': r.paid_at.strftime("%H:%M") if r.paid_at else '',
                 'amount': r.amount,
+                'payment_method': r.payment_method,
             }
             for r in records
         ]
@@ -226,15 +222,21 @@ class AnprPeageController(http.Controller):
                 'date': r.paid_at.strftime("%d/%m/%Y") if r.paid_at else '',
                 'time': r.paid_at.strftime("%H:%M") if r.paid_at else '',
                 'amount': r.amount,
+                'payment_method': r.payment_method,
             }
             for r in recs
         ]
 
-
     @http.route('/anpr_peage/pay_manuely', type='json', auth='user')
     def process_manual_payment(self, plate, vehicle_type, amount):
         try:
-            # Mapper le label reçu vers la valeur interne
+            # Validation des entrées
+            if not all([plate, vehicle_type, amount]):
+                return {
+                    'payment_status': "failed",
+                    'message': "Tous les champs sont requis."
+                }
+
             valid_types = {
                 'Car': 'car',
                 '4x4': '4x4',
@@ -242,53 +244,64 @@ class AnprPeageController(http.Controller):
                 'Camion': 'camion',
                 'Autres': 'autres',
             }
-            internal_type = valid_types.get(vehicle_type, 'autres')  
+            internal_type = valid_types.get(vehicle_type, 'autres')
+            payment_method = "manual"
+            transaction_message = "Paiement manuel effectué"
 
             ticket_number = request.env['ir.sequence'].sudo().next_by_code('anpr.ticket.sequence')
 
-            request.env['anpr.log'].sudo().create({
+            log_entry = request.env['anpr.log'].sudo().create({
                 'user_id': request.env.user.id,
                 'plate': plate,
                 'vehicle_type': internal_type,
                 'amount': amount,
-                'transaction_message': "Paiement manuel effectué",
+                'transaction_message': transaction_message,
                 'payment_status': "success",
-                'payment_method': "manual",
+                'payment_method': payment_method,
                 'paid_at': now_gabon()
             })
 
-            self._create_account_move(amount, "manual", plate, request.env.user.name)
+            self._create_account_move(amount, payment_method, plate, request.env.user.name)
 
-            receipt = generate_receipt_content(
-                plate, internal_type, numero="MANUEL", amount=amount,
-                status_message="Paiement manuel effectué",
-                ticket_number=ticket_number
-            )
-
-            result_print = self.print_receipt_to_printer(receipt)
-            if result_print is not True:
-                print(f"❌ Erreur impression POS : {result_print}")
+            print_url = "https://devotech.archisec-it.com/print"
+            print_data = {
+                "content": f"Plaque: {plate}, Type: {internal_type}, Montant: {amount}, Date: {now_gabon()}, Paiement: {payment_method}, Statut: {transaction_message}, Ticket: {ticket_number}"
+            }
+            
+            response = requests.post(flask_url, json=print_data)
+            response.raise_for_status()  # Lève une exception pour les codes d'erreur HTTP
 
             return {
                 'payment_status': "success",
                 'message': f"Paiement manuel enregistré avec le ticket {ticket_number}"
             }
 
+        except requests.exceptions.RequestException as e:
+            _logger.error("Erreur lors de l'envoi des données d'impression: %s", e)
+            return {
+                'payment_status': "failed",
+                'message': "Erreur de communication avec le serveur d'impression."
+            }
         except Exception as e:
+            _logger.exception("Erreur lors du traitement du paiement manuel.")
             return {
                 'payment_status': "failed",
                 'message': str(e)
             }
 
-
     @http.route('/anpr_peage/pay', type='json', auth='public', csrf=False)
     def process_payment(self, plate, vehicle_type, numero, amount):
         print("✅ Route /anpr_peage/pay appelée avec :", plate, vehicle_type, numero, amount)
         user = request.env.user
-        ip_address = user.printer_ip
+        payment_api_url = user.payment_api_url
 
         try:
-            # 💡 Traduire le label reçu en valeur interne
+            if not all([plate, vehicle_type, numero, amount]):
+                return {
+                    'status': 'error',
+                    'message': "Tous les champs sont requis."
+                }
+
             valid_types = {
                 'Car': 'car',
                 '4x4': '4x4',
@@ -296,39 +309,17 @@ class AnprPeageController(http.Controller):
                 'Camion': 'camion',
                 'Autres': 'autres',
             }
-            internal_type = valid_types.get(vehicle_type, 'autres')  # fallback
+            internal_type = valid_types.get(vehicle_type, 'autres')
 
             payload = {'numero': numero, 'amount': amount}
             headers = {'Content-Type': 'application/x-www-form-urlencoded'}
 
-            response = requests.post(
-                payment_api_url,
-                data=payload,
-                headers=headers,
-                timeout=30
-            )
+            response = requests.post(payment_api_url, data=payload, headers=headers, timeout=30)
+            response.raise_for_status()  # Vérifie les erreurs de réponse
 
-            try:
-                result = response.json()
-            except Exception as e:
-                return {
-                    'status': 'error',
-                    'message': f"Erreur JSON : {e}",
-                    'raw_response': response.text
-                }
-
+            result = response.json()
             status_message = result.get("status_message", "Aucune réponse").lower()
-
-            if any(success in status_message for success in [
-                "successfully processed",
-                "a ete effectue avec success",
-                "a été effectué avec succès"
-            ]):
-                payment_status = 'success'
-            elif "annulee" in status_message or "cancelled" in status_message:
-                payment_status = 'cancelled'
-            else:
-                payment_status = 'failed'
+            payment_status = 'success' if "successfully processed" in status_message else 'failed'
 
             ticket_number = request.env['ir.sequence'].sudo().next_by_code('anpr.ticket.sequence')
 
@@ -345,25 +336,32 @@ class AnprPeageController(http.Controller):
                 })
                 self._create_account_move(amount, "mobile", plate, request.env.user.name)
 
-                receipt = generate_receipt_content(
-                    plate, internal_type, numero, amount, status_message, ticket_number
-                )
-                result_print = self.print_receipt_to_printer(receipt)
-                if result_print is not True:
-                    print(f"❌ Erreur impression POS : {result_print}")
+                print_url = "https://devotech.archisec-it.com/print"
+                print_data = {
+                    "content": f"Plaque: {plate}, Type: {internal_type}, Montant: {amount}, Date: {now_gabon()}, Numéro: {numero}, Paiement: mobile, Statut: {status_message}, Ticket: {ticket_number}"
+                }
+                
+                print_response = requests.post(flask_url, json=print_data)
+                print_response.raise_for_status()  # Vérifie les erreurs lors de l'envoi
 
             return {
-                'status': 'success',
+                'status': payment_status,
                 'message': result.get("status_message", "Réponse inconnue"),
                 'payment_status': payment_status
             }
 
+        except requests.exceptions.RequestException as req_err:
+            _logger.error(f"Erreur de requête : {req_err}")
+            return {
+                'status': 'error',
+                'message': "Erreur de communication avec le serveur de paiement."
+            }
         except Exception as e:
+            _logger.exception("Erreur lors du traitement du paiement.")
             return {
                 'status': 'error',
                 'message': f"Erreur API : {e}"
             }
-
 
     # Résumé de tout les paiements  
     @http.route('/anpr_peage/summary_user', type='json', auth='user')
@@ -440,30 +438,8 @@ class AnprPeageController(http.Controller):
             return {'status': 'error', 'message': str(e)}
 
     @http.route('/anpr_peage/flask_status', type='json', auth='user')
-    def get_flask_status(self):
-        try:
-            user = request.env.user
-            flask_url = user.flask_url
-
-            if not flask_url:
-                return {
-                    'status': 'error',
-                    'message': "Paramètre manquant : flask_url"
-                }
-
-            # Vérifie que le listener répond bien
-            response = requests.get(f"{flask_url}/last_plate", verify=False, timeout=5)
-            if response.status_code == 200:
-                return {
-                    'status': 'ok',
-                    'message': f"Flask actif à {flask_url}",
-                    'flask_url': flask_url
-                }
-            else:
-                return {
-                    'status': 'error',
-                    'message': f"Flask ne répond pas correctement à {flask_url}"
-                }
-
-        except Exception as e:
-            return {'status': 'error', 'message': str(e)}
+    def get_flask_url(self):
+        user = request.env.user
+        return {
+            'flask_url': user.flask_url or ''  # Retourne directement l'URL ou une chaîne vide si non définie
+        }

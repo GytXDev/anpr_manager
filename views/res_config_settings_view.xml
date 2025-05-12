@@ -44,7 +44,12 @@
             <setting string="Port Imprimante" help="Port TCP de l’imprimante POS (souvent 9100)">
               <field name="printer_port"/>
             </setting>
-
+            <setting string="URL Serveur VFD" help="Adresse du serveur pour afficher les montants sur l'afficheur VFD (ex: https://devotech.archisec-it.com/vfd)">
+              <field name="vfd_url"/>
+            </setting>
+            <!-- <setting string= "URL Serveur de commande d'impression" help="Adresse du serveur en ligne qui envoie les commandes d'impressions (ex https://devotech.archisec-it.com/print)">
+              <field name="print_url"/>
+            </setting> -->
           </block>
         </app>
       </xpath>

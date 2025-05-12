@@ -28,7 +28,8 @@
             <div class="flex-fill">Plaque</div>
             <div class="flex-fill">Date</div>
             <div class="flex-fill">Heure</div>
-            <div class="flex-fill text-end">Montant</div>
+            <div class="flex-fill">Montant</div>
+            <div class="flex-fill text-end">Paiement</div>
           </div>
 
           <div class="transaction-list">
@@ -38,7 +39,8 @@
                 <div class="flex-fill" t-esc="tx.plate"/>
                 <div class="flex-fill" t-esc="tx.date"/>
                 <div class="flex-fill" t-esc="tx.time"/>
-                <div class="flex-fill text-end"><t t-esc="tx.amount"/> CFA</div>
+                <div class="flex-fill"><t t-esc="tx.amount"/> CFA</div>
+                <div class="flex-fill text-end" t-esc="tx.payment_method"/>
               </div>
             </t>
           </div>
@@ -165,20 +167,18 @@
                 </div>
 
                 <div class="mb-3">
-                <label class="form-label">Type de véhicule</label>
-                <div class="vehicle-grid">
-                  <t t-foreach="vehicleCategories" t-as="cat" t-key="cat">
-                    <div class="vehicle-tile"
-                        t-att-class="{ 'selected': state.mobileForm.vehicle_type === cat }"
-                       t-on-click="() => this.selectVehicleTypeMobile(cat)">
-                      <img t-att-src="'/anpr_peage_manager/static/src/img/' + cat + '.png'" alt="" class="vehicle-icon"/>
-                      <div class="vehicle-label"><t t-esc="cat"/></div>
-                    </div>
-                  </t>
+                  <label class="form-label">Type de véhicule</label>
+                  <div class="vehicle-grid">
+                    <t t-foreach="vehicleCategories" t-as="cat" t-key="cat">
+                      <div class="vehicle-tile"
+                          t-att-class="{ 'selected': state.mobileForm.vehicle_type === cat }"
+                          t-on-click="() => this.selectVehicleTypeMobile(cat)">
+                        <img t-att-src="'/anpr_peage_manager/static/src/img/' + cat + '.png'" alt="" class="vehicle-icon"/>
+                        <div class="vehicle-label"><t t-esc="cat"/></div>
+                      </div>
+                    </t>
+                  </div>
                 </div>
-              </div>
-
-
                 <div class="mb-3">
                   <label class="form-label">Montant à payer (CFA)</label>
                   <input type="number" class="form-control" t-att-value="state.mobileForm.amount" readonly="readonly"/>
@@ -186,7 +186,9 @@
 
                 <div class="d-flex justify-content-between">
                   <button class="btn btn-secondary" t-on-click="closeMobileModal">Annuler</button>
-                  <button class="btn btn-success" t-on-click="confirmMobileMoneyPayment" t-att-disabled="!state.mobileForm.numero">
+                  <button class="btn btn-success" 
+                          t-on-click="confirmMobileMoneyPayment" 
+                          t-att-disabled="state.loading || !state.mobileForm.numero">
                     <t t-if="!state.loading">Payer maintenant</t>
                     <t t-if="state.loading">Paiement en cours...</t>
                   </button>

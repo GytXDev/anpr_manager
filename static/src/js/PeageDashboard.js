@@ -87,9 +87,10 @@ export class PeageDashboard extends Component {
                     });
                 }
 
-                const flaskStatus = await rpc("/anpr_peage/flask_status");
-                if (flaskStatus.status === "ok" && flaskStatus.flask_url) {
-                    this.state.flask_url = flaskStatus.flask_url;
+                // Récupération de l'URL Flask
+                const flaskData = await rpc("/anpr_peage/flask_status");
+                if (flaskData.flask_url) {
+                    this.state.flask_url = flaskData.flask_url;
                 } else {
                     this.notification.add("❌ flask_url manquant ou non configuré.", { type: "warning", sticky: true });
                 }
@@ -117,7 +118,18 @@ export class PeageDashboard extends Component {
             }
             try {
                 const result = await rpc("/anpr_peage/transactions_user");
-                this.state.transactions = result || [];
+
+                const paymentLabels = {
+                    manual: "Manuel",
+                    mobile: "Mobile Money"
+                };
+
+                // Convertir les valeurs brutes en labels
+                this.state.transactions = (result || []).map(tx => ({
+                    ...tx,
+                    payment_method: paymentLabels[tx.payment_method] || "Inconnu"
+                }));
+
                 this.paginateTransactions();
             } catch (error) {
                 console.error("Erreur lors du chargement des transactions :", error);
@@ -138,8 +150,8 @@ export class PeageDashboard extends Component {
 
     async _fetchLastPlate() {
         try {
-            const baseUrl = this.state.flask_url || 'https://127.0.0.1:8090';
-            const url = `${baseUrl}/last_plate`;
+            const baseUrl = this.state.flask_url;
+            const url = baseUrl;
 
             const resp = await fetch(url);
             const text = await resp.text();
@@ -147,7 +159,7 @@ export class PeageDashboard extends Component {
 
             // 👉 N'afficher que s’il y a une plaque
             if (data.plate) {
-                const code = data.vehicle_type;
+                const code = parseInt(data.vehicle_type);  // 🔧 cast en number
                 const label = this.vehicleTypeToString(code);
                 const tariff = this.getAmountFromVehicleTypeCode(code);
                 const category = CODE_TO_CATEGORY.get(code) ?? "Inconnu";
@@ -259,8 +271,10 @@ export class PeageDashboard extends Component {
 
     async confirmManualPayment() {
         const { plate, vehicle_type, amount } = this.state.form;
-        if (!plate || !vehicle_type || !amount)
+        if (!plate || !vehicle_type || !amount) {
             return this.notification.add("Veuillez remplir tous les champs.", { type: "warning" });
+        }
+        const flask_url = this.state.flask_url;
 
         try {
             const res = await rpc("/anpr_peage/pay_manuely", {
@@ -271,25 +285,46 @@ export class PeageDashboard extends Component {
             });
 
             if (res.payment_status === "success") {
-                this._addTransaction(plate, amount); // seulement si succès
+                this._addTransaction(plate, amount, "manual");
                 this.notification.add("Paiement manuel enregistré.", { type: "success" });
+
+                // Vérifiez si des données existent avant de réinitialiser
+                const lastPlateResponse = await fetch(flask_url, {
+                    method: 'GET',
+                });
+
+                const lastPlateData = await lastPlateResponse.json();
+
+                if (lastPlateData.plate) {
+                    // Appel de la route DELETE pour réinitialiser la plaque après paiement
+                    await fetch(flask_url, {
+                        method: 'DELETE',
+                    });
+                }
+
                 this.closeModal();
             } else {
                 this.notification.add(`Échec: ${res.message}`, { type: "danger" });
             }
-        } catch {
-            this.notification.add("Erreur de communication avec le serveur.", { type: "danger" });
+        } catch (error) {
+            console.error("Erreur lors de la requête vers /anpr_peage/pay_manuely :", error);
+            this.notification.add("Erreur de communication avec le serveur. Le paiement peut avoir été enregistré.", { type: "danger" });
+            this.closeModal();
         }
     }
 
     async confirmMobileMoneyPayment() {
         const { plate, vehicle_type, numero, amount } = this.state.mobileForm;
-        if (!plate || !vehicle_type || !numero || !amount)
+        if (!plate || !vehicle_type || !numero || !amount) {
             return this.notification.add("Remplis tous les champs.", { type: "warning" });
+        }
 
         this.state.loading = true;
 
+        const flask_url = this.state.flask_url;
+
         try {
+            // Envoi du paiement à l'API
             const res = await rpc("/anpr_peage/pay", {
                 plate,
                 vehicle_type,
@@ -299,24 +334,30 @@ export class PeageDashboard extends Component {
             });
 
             if (res.payment_status === "success") {
-                this._addTransaction(plate, amount);
+                this._addTransaction(plate, amount, "mobile");
                 this.notification.add("Paiement réussi!", { type: "success" });
+
+                // Appel de la route DELETE pour réinitialiser la plaque après paiement
+                await fetch(flask_url, {
+                    method: 'DELETE',
+                });
+
                 this.closeMobileModal();
             } else {
                 this.notification.add(`⚠️ ${res.message}`, { type: "warning" });
             }
-        } catch {
-            this.notification.add("Erreur réseau.", { type: "danger" });
+        } catch (error) {
+            console.error("Erreur lors du traitement du paiement mobile :", error);
+            this.notification.add("Erreur de communication avec le serveur.", { type: "danger" });
         } finally {
             this.state.loading = false; // Débloquer le bouton
         }
     }
 
 
-
-    _addTransaction(plate, amount) {
+    _addTransaction(plate, amount, payment_method) {
         const now = new Date();
-        const id = Date.now();  // Identifiant unique côté client
+        const id = Date.now();
 
         const optionsDate = {
             timeZone: "Africa/Libreville",
@@ -334,17 +375,27 @@ export class PeageDashboard extends Component {
         const date = now.toLocaleDateString("fr-FR", optionsDate);
         const time = now.toLocaleTimeString("fr-FR", optionsTime);
 
+        // Traduire la méthode de paiement en label
+        const paymentLabels = {
+            manual: "Manuel",
+            mobile: "Mobile Money"
+        };
+        const paymentLabel = paymentLabels[payment_method] || "Inconnu";
+
         this.state.transactions.unshift({
             id,
             operator: this.state.user?.name || "Opérateur",
             plate,
             date,
             time,
-            amount
+            amount,
+            payment_method: paymentLabel,  // On injecte le label au lieu de la valeur brute
         });
 
         this.paginateTransactions();
     }
+
+
 
 
     closeMobileModal() {

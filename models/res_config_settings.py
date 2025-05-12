@@ -14,6 +14,7 @@ class ResConfigSettings(models.TransientModel):
     payment_api_url = fields.Char(string="URL API Mobile Money")
     printer_ip = fields.Char(string="IP Imprimante POS")
     printer_port = fields.Integer(string="Port Imprimante POS")
+    vfd_url = fields.Char(string="URL Serveur VFD")
 
     def get_values(self):
         res = super().get_values()
@@ -29,6 +30,8 @@ class ResConfigSettings(models.TransientModel):
             'payment_api_url': user.payment_api_url,
             'printer_ip': user.printer_ip,
             'printer_port': user.printer_port,
+            'vfd_url': user.vfd_url,
+            # 'print_url': user.print_url,
         })
         return res
 
@@ -46,4 +49,6 @@ class ResConfigSettings(models.TransientModel):
             'payment_api_url': self.payment_api_url,
             'printer_ip': self.printer_ip,
             'printer_port': self.printer_port,
+            'vfd_url': self.vfd_url,
+            # 'print_url': self.print_url,
         })
