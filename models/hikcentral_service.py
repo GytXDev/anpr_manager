@@ -1,13 +1,12 @@
 # anpr_peage_manager/models/hikcentral_service.py
-
-import threading
 import requests
 import time
 import hmac
 import hashlib
 import base64
-from odoo import models, fields, api
 import logging
+
+from odoo import models, api
 
 _logger = logging.getLogger(__name__)
 
@@ -17,11 +16,9 @@ EVENT_TYPES = [131622]
 SUBSCRIBE_ENDPOINT = '/artemis/api/eventService/v1/eventSubscriptionByEventTypes'
 UNSUBSCRIBE_ENDPOINT = '/artemis/api/eventService/v1/eventUnSubscriptionByEventTypes'
 
-
 def generate_headers(app_key, app_secret, method, path):
     timestamp = str(int(time.time() * 1000))
     string_to_sign = f"{method}\n*/*\napplication/json\nx-ca-key:{app_key}\nx-ca-timestamp:{timestamp}\n{path}"
-
     digest = hmac.new(app_secret.encode('utf-8'), string_to_sign.encode('utf-8'), digestmod=hashlib.sha256).digest()
     signature = base64.b64encode(digest).decode('utf-8')
 
@@ -34,14 +31,12 @@ def generate_headers(app_key, app_secret, method, path):
         'x-ca-signature-headers': 'x-ca-key,x-ca-timestamp'
     }
 
-
 class HikcentralService(models.AbstractModel):
     _name = 'hikcentral.service'
     _description = "Service d'intégration Hikcentral ANPR"
 
     def _get_user_config(self):
         user = self.env.user
-
         return {
             'app_key': user.artemis_app_key,
             'app_secret': user.artemis_app_secret,
@@ -77,15 +72,6 @@ class HikcentralService(models.AbstractModel):
         except Exception as e:
             _logger.error(f"❌ Error during subscribe: {e}")
 
-    def subscription_loop(self, config):
-        while True:
-            _logger.info("🔄 Rafraîchissement de la souscription Artemis...")
-            self.unsubscribe_from_events(config)
-            time.sleep(1)
-            self.subscribe_to_events(config)
-            _logger.info("✅ Nouvelle souscription active.")
-            time.sleep(120)
-
     @api.model
     def start_hikcentral_listener(self):
         try:
@@ -94,10 +80,10 @@ class HikcentralService(models.AbstractModel):
             _logger.error(f"⚠️ Impossible de récupérer la configuration utilisateur : {e}")
             return
 
-        _logger.info(f"🚀 Démarrage du listener Artemis pour l'utilisateur {self.env.user.name}...")
+        _logger.info(f"🚀 Souscription Artemis pour l'utilisateur {self.env.user.name}...")
 
-        thread = threading.Thread(target=self.subscription_loop, args=(config,))
-        thread.daemon = True
-        thread.start()
+        self.unsubscribe_from_events(config)
+        time.sleep(1)
+        self.subscribe_to_events(config)
 
-        _logger.info("✅ Service de souscription Artemis démarré.")
+        _logger.info("✅ Souscription Artemis effectuée.")

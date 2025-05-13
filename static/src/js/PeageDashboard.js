@@ -73,15 +73,16 @@ export class PeageDashboard extends Component {
 
         onWillStart(async () => {
             try {
-                // 🔹 Charger l'utilisateur
+                // Charger l'utilisateur
                 const userInfo = await rpc('/anpr_peage/get_current_user');
                 this.state.user = userInfo;
 
-                // 🔍 Diagnostic Artemis
+                // Vérifier la configuration Artemis
                 const diag = await rpc("/anpr_peage/hikcentral_status");
-                console.log("📡 Diagnostic Artemis :", diag);
+                console.log("Diagnostic Artemis :", diag);
+
                 if (diag.status !== 'ok') {
-                    this.notification.add(`❌ Paramètres manquants : ${diag.message}`, {
+                    this.notification.add(`Paramètres manquants : ${diag.message}`, {
                         type: "warning",
                         sticky: true,
                     });
@@ -92,10 +93,13 @@ export class PeageDashboard extends Component {
                 if (flaskData.flask_url) {
                     this.state.flask_url = flaskData.flask_url;
                 } else {
-                    this.notification.add("❌ flask_url manquant ou non configuré.", { type: "warning", sticky: true });
+                    this.notification.add("flask_url manquant ou non configuré.", {
+                        type: "warning",
+                        sticky: true
+                    });
                 }
 
-                // 🔹 Essayer de démarrer le listener HikCentral
+                // Démarrage du service HikCentral
                 const result = await rpc("/anpr_peage/start_hikcentral");
                 this.state.hikcentral_error = result.status !== "success";
 
@@ -116,6 +120,7 @@ export class PeageDashboard extends Component {
                 );
                 console.error("Erreur HikCentral/User:", e);
             }
+
             try {
                 const result = await rpc("/anpr_peage/transactions_user");
 
@@ -124,7 +129,6 @@ export class PeageDashboard extends Component {
                     mobile: "Mobile Money"
                 };
 
-                // Convertir les valeurs brutes en labels
                 this.state.transactions = (result || []).map(tx => ({
                     ...tx,
                     payment_method: paymentLabels[tx.payment_method] || "Inconnu"
@@ -135,6 +139,7 @@ export class PeageDashboard extends Component {
                 console.error("Erreur lors du chargement des transactions :", error);
             }
         });
+
 
         onMounted(() => {
             this._clock = setInterval(() => this.state.date = this.formatDateTime(new Date()), 1000);
@@ -159,7 +164,7 @@ export class PeageDashboard extends Component {
 
             // 👉 N'afficher que s’il y a une plaque
             if (data.plate) {
-                const code = parseInt(data.vehicle_type);  // 🔧 cast en number
+                const code = parseInt(data.vehicle_type);
                 const label = this.vehicleTypeToString(code);
                 const tariff = this.getAmountFromVehicleTypeCode(code);
                 const category = CODE_TO_CATEGORY.get(code) ?? "Inconnu";
@@ -171,16 +176,28 @@ export class PeageDashboard extends Component {
                 this.state.form.amount = tariff;
                 this.state.mobileForm.amount = tariff;
 
-                console.log(`📸 ${data.plate} (${label}, catégorie : ${category}) -> ${tariff} CFA`);
+                const srcIndex = data.src_index;
+
+                if (srcIndex !== undefined) {
+                    console.log(`${data.plate} (${label}, catégorie : ${category}) -> ${tariff} CFA, srcIndex : ${srcIndex}`);
+                } else {
+                    console.log(`${data.plate} (${label}, catégorie : ${category}) -> ${tariff} CFA, srcIndex : non disponible`);
+                }
+
+                console.log(`Image véhicule : ${data.vehicle_pic_uri ?? "non disponible"}`);
+
+                // ✅ Envoyer le montant au VFD
+                await rpc("/anpr_peage/scroll_message", {
+                    message: `TOTAL: ${tariff} CFA`,
+                    permanent: true
+                });
             }
 
         } catch (e) {
-            // silence les erreurs réseau si aucune plaque, utile en dev
-            // console.error("⛔ Fetch last_plate:", e);
+            // Erreurs silencieuses, utiles en prod
+            // console.error("Erreur fetch last_plate:", e);
         }
     }
-
-
 
     formatDateTime(date) {
         return date.toLocaleString("fr-FR", { weekday: "short", year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -271,12 +288,20 @@ export class PeageDashboard extends Component {
 
     async confirmManualPayment() {
         const { plate, vehicle_type, amount } = this.state.form;
+
+        // Vérification des champs requis
         if (!plate || !vehicle_type || !amount) {
             return this.notification.add("Veuillez remplir tous les champs.", { type: "warning" });
         }
-        const flask_url = this.state.flask_url;
+
+        // Vérification de l'URL Flask
+        if (!this.state.flask_url) {
+            this.notification.add("❌ L'URL Flask n'est pas disponible.", { type: "warning" });
+            return;
+        }
 
         try {
+            // Envoi de la requête de paiement
             const res = await rpc("/anpr_peage/pay_manuely", {
                 plate,
                 vehicle_type,
@@ -288,18 +313,26 @@ export class PeageDashboard extends Component {
                 this._addTransaction(plate, amount, "manual");
                 this.notification.add("Paiement manuel enregistré.", { type: "success" });
 
-                // Vérifiez si des données existent avant de réinitialiser
-                const lastPlateResponse = await fetch(flask_url, {
+                // Récupération de la dernière plaque
+                const lastPlateResponse = await fetch(this.state.flask_url, {
                     method: 'GET',
                 });
 
+                if (!lastPlateResponse.ok) {
+                    throw new Error("Erreur lors de la récupération des données de la plaque.");
+                }
+
                 const lastPlateData = await lastPlateResponse.json();
 
+                // Suppression de la plaque si elle existe
                 if (lastPlateData.plate) {
-                    // Appel de la route DELETE pour réinitialiser la plaque après paiement
-                    await fetch(flask_url, {
+                    const deleteResponse = await fetch(this.state.flask_url, {
                         method: 'DELETE',
                     });
+
+                    if (!deleteResponse.ok) {
+                        throw new Error("Erreur lors de la suppression de la plaque.");
+                    }
                 }
 
                 this.closeModal();
@@ -307,7 +340,7 @@ export class PeageDashboard extends Component {
                 this.notification.add(`Échec: ${res.message}`, { type: "danger" });
             }
         } catch (error) {
-            console.error("Erreur lors de la requête vers /anpr_peage/pay_manuely :", error);
+            console.error("Erreur lors de la requête :", error);
             this.notification.add("Erreur de communication avec le serveur. Le paiement peut avoir été enregistré.", { type: "danger" });
             this.closeModal();
         }

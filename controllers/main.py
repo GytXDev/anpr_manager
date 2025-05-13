@@ -175,7 +175,7 @@ class AnprPeageController(http.Controller):
         flask_url = user.flask_url
 
         try:
-            response = requests.get(f"{flask_url}/last_plate", verify=False, timeout=5)
+            response = requests.get(f"{flask_url}", verify=False, timeout=5)
             if response.status_code == 200:
                 data = response.json()
                 return {
@@ -229,6 +229,8 @@ class AnprPeageController(http.Controller):
 
     @http.route('/anpr_peage/pay_manuely', type='json', auth='user')
     def process_manual_payment(self, plate, vehicle_type, amount):
+        user = request.env.user
+        print_url = user.print_url
         try:
             # Validation des entrées
             if not all([plate, vehicle_type, amount]):
@@ -263,12 +265,11 @@ class AnprPeageController(http.Controller):
 
             self._create_account_move(amount, payment_method, plate, request.env.user.name)
 
-            print_url = "https://devotech.archisec-it.com/print"
             print_data = {
                 "content": f"Plaque: {plate}, Type: {internal_type}, Montant: {amount}, Date: {now_gabon()}, Paiement: {payment_method}, Statut: {transaction_message}, Ticket: {ticket_number}"
             }
             
-            response = requests.post(flask_url, json=print_data)
+            response = requests.post(print_url, json=print_data)
             response.raise_for_status()  # Lève une exception pour les codes d'erreur HTTP
 
             return {
@@ -294,6 +295,7 @@ class AnprPeageController(http.Controller):
         print("✅ Route /anpr_peage/pay appelée avec :", plate, vehicle_type, numero, amount)
         user = request.env.user
         payment_api_url = user.payment_api_url
+        print_url = user.print_url
 
         try:
             if not all([plate, vehicle_type, numero, amount]):
@@ -336,12 +338,11 @@ class AnprPeageController(http.Controller):
                 })
                 self._create_account_move(amount, "mobile", plate, request.env.user.name)
 
-                print_url = "https://devotech.archisec-it.com/print"
                 print_data = {
                     "content": f"Plaque: {plate}, Type: {internal_type}, Montant: {amount}, Date: {now_gabon()}, Numéro: {numero}, Paiement: mobile, Statut: {status_message}, Ticket: {ticket_number}"
                 }
                 
-                print_response = requests.post(flask_url, json=print_data)
+                print_response = requests.post(print_url, json=print_data)
                 print_response.raise_for_status()  # Vérifie les erreurs lors de l'envoi
 
             return {

@@ -38,18 +38,12 @@
             <setting string="URL API Paiement Mobile Money" help="Lien vers le script de paiement Mobile Money (ex: https://gytx.dev/api/airtelmoney-web.php)">
               <field name="payment_api_url"/>
             </setting>
-            <setting string="Adresse IP Imprimante" help="Adresse IP de l’imprimante POS (ex: 192.168.1.114)">
-              <field name="printer_ip"/>
-            </setting>
-            <setting string="Port Imprimante" help="Port TCP de l’imprimante POS (souvent 9100)">
-              <field name="printer_port"/>
-            </setting>
             <setting string="URL Serveur VFD" help="Adresse du serveur pour afficher les montants sur l'afficheur VFD (ex: https://devotech.archisec-it.com/vfd)">
               <field name="vfd_url"/>
             </setting>
-            <!-- <setting string= "URL Serveur de commande d'impression" help="Adresse du serveur en ligne qui envoie les commandes d'impressions (ex https://devotech.archisec-it.com/print)">
+            <setting string= "URL Serveur de commande d'impression" help="Adresse du serveur en ligne qui envoie les commandes d'impressions (ex https://devotech.archisec-it.com/print)">
               <field name="print_url"/>
-            </setting> -->
+            </setting>
           </block>
         </app>
       </xpath>
