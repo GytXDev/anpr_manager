@@ -71,6 +71,7 @@ export class PeageDashboard extends Component {
             payment_status: ""
         });
 
+
         onWillStart(async () => {
             try {
                 // Charger l'utilisateur
@@ -86,6 +87,9 @@ export class PeageDashboard extends Component {
                         type: "warning",
                         sticky: true,
                     });
+                } else {
+                    this.state.allowed_cameras = diag.config.src_codes?.split(',') ?? [];
+                    console.log("Caméras autorisées pour cet utilisateur :", this.state.allowed_cameras);
                 }
 
                 // Récupération de l'URL Flask
@@ -162,8 +166,18 @@ export class PeageDashboard extends Component {
             const text = await resp.text();
             const data = JSON.parse(text);
 
-            // 👉 N'afficher que s’il y a une plaque
+            const srcIndex = data.src_index;
+
+            // Vérification de la caméra autorisée
+            const allowedSources = this.state.allowed_cameras ?? [];
+            if (!allowedSources.includes(srcIndex)) {
+                console.log(`Plaque ignorée (caméra non autorisée) : ${data.plate} - source : ${srcIndex}`);
+                return;
+            }
+
             if (data.plate) {
+                this.lastFetchedPlate = data.plate;
+
                 const code = parseInt(data.vehicle_type);
                 const label = this.vehicleTypeToString(code);
                 const tariff = this.getAmountFromVehicleTypeCode(code);
@@ -176,15 +190,7 @@ export class PeageDashboard extends Component {
                 this.state.form.amount = tariff;
                 this.state.mobileForm.amount = tariff;
 
-                const srcIndex = data.src_index;
-
-                if (srcIndex !== undefined) {
-                    console.log(`${data.plate} (${label}, catégorie : ${category}) -> ${tariff} CFA, srcIndex : ${srcIndex}`);
-                } else {
-                    console.log(`${data.plate} (${label}, catégorie : ${category}) -> ${tariff} CFA, srcIndex : non disponible`);
-                }
-
-                console.log(`Image véhicule : ${data.vehicle_pic_uri ?? "non disponible"}`);
+                console.log(`${data.plate} (${label}, catégorie : ${category}) -> ${tariff} CFA, srcIndex : ${srcIndex ?? "non disponible"}`);
 
                 // ✅ Envoyer le montant au VFD
                 await rpc("/anpr_peage/scroll_message", {
@@ -194,7 +200,7 @@ export class PeageDashboard extends Component {
             }
 
         } catch (e) {
-            // Erreurs silencieuses, utiles en prod
+            // Silencieux en production
             // console.error("Erreur fetch last_plate:", e);
         }
     }
@@ -276,6 +282,14 @@ export class PeageDashboard extends Component {
         this.state.showMobileModal = true;
     }
 
+    _resetDetectedPlate() {
+        this.state.detected_plate = null;
+        this.state.detected_type = null;
+        this.state.detected_type_code = null;
+        this.state.detected_category = null;
+    }
+
+
     selectVehicleTypeMobile(cat) {
         this.state.mobileForm.vehicle_type = cat;
         this.state.mobileForm.amount = CATEGORY_TO_TARIFF.get(cat) ?? 1500;
@@ -336,6 +350,7 @@ export class PeageDashboard extends Component {
                 }
 
                 this.closeModal();
+                this._resetDetectedPlate();
             } else {
                 this.notification.add(`Échec: ${res.message}`, { type: "danger" });
             }
@@ -376,6 +391,7 @@ export class PeageDashboard extends Component {
                 });
 
                 this.closeMobileModal();
+                this._resetDetectedPlate();
             } else {
                 this.notification.add(`⚠️ ${res.message}`, { type: "warning" });
             }

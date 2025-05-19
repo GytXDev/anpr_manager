@@ -64,7 +64,6 @@ class HikcentralService(models.AbstractModel):
             "eventDest": config['event_dest_url'],
             "token": config['token'],
             "passBack": 0,
-            # "srcIndexCodes": config['src_codes']
         }
         try:
             response = requests.post(url, headers=headers, json=payload, verify=False)

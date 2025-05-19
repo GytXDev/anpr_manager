@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
   <t t-name="anpr_peage_dashboard" owl="1">
-    <div class="o_container otech-peage-dashboard p-3" style="min-height: 100vh; overflow-y: auto;">
+    <div class="o_container otech-peage-dashboard p-3" style="height: 100vh; overflow-y: auto;">
 
       <!-- Header -->
       <div class="d-flex justify-content-between align-items-center mb-4">
@@ -68,10 +68,10 @@
                 </div>
               </t>
             </div>
-            <button class="btn btn-secondary" t-on-click="openManualModal">
+            <button class="btn btn-secondary btn-pay" t-on-click="openManualModal">
               Payer manuellement
             </button>
-            <button class="btn btn-success" t-on-click="openMobileMoneyModal">
+            <button class="btn btn-success btn-pay" t-on-click="openMobileMoneyModal">
               Payer via Mobile Money
             </button>
           </div>
@@ -224,13 +224,7 @@
         <t t-else="">Aucune plaque détectée</t>
       </div>
 
-       <t t-if="state.hikcentral_error">
-          <div class="alert alert-danger text-center fw-bold" role="alert">
-            Problème : Le service HikCentral n'est pas actif. Veuillez vérifier la connexion Artemis !
-          </div>
-        </t>
-
-
+       
       <t t-if="state.showCloseConfirm">
         <div class="modal-backdrop fade show"
             style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1040;"></div>
