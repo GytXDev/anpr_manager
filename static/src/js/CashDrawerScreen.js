@@ -20,10 +20,10 @@ export class CashDrawerScreen extends Component {
             userAvatar: "",
             userTotals: { manual: 0, mobile: 0, overall: 0 },
             globalTotals: { manual: 0, mobile: 0, overall: 0 },
+            showReportMenu: false,
         });
 
         onMounted(async () => {
-            /* infos utilisateur */
             try {
                 const user = await rpc("/anpr_peage/get_current_user");
                 this.state.userName = user.name;
@@ -32,18 +32,20 @@ export class CashDrawerScreen extends Component {
                 console.error("Impossible de charger l’utilisateur :", e);
             }
 
-            /* horloge temps réel */
             this._timer = setInterval(() => {
                 this.state.currentTime = new Date();
             }, 1000);
 
-            /* totaux */
             await this.fetchTodayTotals();
         });
 
         onWillUnmount(() => {
             clearInterval(this._timer);
         });
+    }
+
+    toggleReportMenu() {
+        this.state.showReportMenu = !this.state.showReportMenu;
     }
 
     formatDateTime(date) {
@@ -77,6 +79,22 @@ export class CashDrawerScreen extends Component {
             type: "success",
         });
     }
+
+    async sendReport(period) {
+        this.state.showReportMenu = false;
+        try {
+            const result = await rpc("/anpr_peage/send_report", { period });
+            this.notification.add(`Rapport ${period} envoyé avec succès`, {
+                type: "success",
+            });
+        } catch (e) {
+            this.notification.add("Erreur lors de l’envoi du rapport", {
+                type: "danger",
+            });
+            console.error(e);
+        }
+    }
+
 }
 
 registry.category("actions").add("anpr_peage_cash_drawer_screen", CashDrawerScreen);

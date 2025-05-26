@@ -33,15 +33,35 @@
         </div>
       </div>
 
-      <!-- Bouton -->
-      <button class="btn-open mt-4" t-on-click="onOpenCash">
-        Ouvrir la caisse
-      </button>
+      <!-- Boutons d'action (Ouvrir + Envoyer rapport) -->
+      <div class="actions-row">
+        <button class="btn-open" t-on-click="onOpenCash">
+          Ouvrir la caisse
+        </button>
+
+        <div class="report-wrapper">
+          <button class="btn-report" t-on-click="toggleReportMenu">
+            Envoyer rapport
+          </button>
+
+          <t t-if="state.showReportMenu">
+            <div class="report-dropdown">
+              <div t-on-click="() => sendReport('daily')">Journalier</div>
+              <div t-on-click="() => sendReport('weekly')">Hebdomadaire</div>
+              <div t-on-click="() => sendReport('monthly')">Mensuel</div>
+              <div t-on-click="() => sendReport('quarterly')">Trimestriel</div>
+              <div t-on-click="() => sendReport('yearly')">Annuel</div>
+            </div>
+          </t>
+        </div>
+      </div>
 
       <!-- Date -->
-      <div class="date-display">
-        <t t-esc="formatDateTime(state.currentTime)"/>
-      </div>
+      <t t-if="!state.showReportMenu">
+        <div class="date-display">
+          <t t-esc="formatDateTime(state.currentTime)"/>
+        </div>
+      </t>
 
     </div>
   </t>

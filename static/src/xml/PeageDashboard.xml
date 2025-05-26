@@ -19,47 +19,51 @@
       </div>
 
       <!-- Contenu principal -->
-      <div class="d-flex flex-wrap" style="gap: 20px;">
+     <div class="otech-dashboard-main">
+
         <!-- Liste des transactions -->
-        <div class="flex-grow-1" style="min-width: 500px;">
+        <div class="otech-transaction-scroll-wrapper">
+            <div class="otech-transaction-scroll">
 
-          <div class="d-flex fw-bold border-bottom pb-1 mb-2 small text-uppercase">
-            <div class="flex-fill">Opérateur</div>
-            <div class="flex-fill">Plaque</div>
-            <div class="flex-fill">Date</div>
-            <div class="flex-fill">Heure</div>
-            <div class="flex-fill">Montant</div>
-            <div class="flex-fill text-end">Paiement</div>
-          </div>
-
-          <div class="transaction-list">
-            <t t-foreach="state.paginated" t-as="tx" t-key="tx.id">
-              <div class="d-flex transaction-line">
-                <div class="flex-fill" t-esc="tx.operator"/>
-                <div class="flex-fill" t-esc="tx.plate"/>
-                <div class="flex-fill" t-esc="tx.date"/>
-                <div class="flex-fill" t-esc="tx.time"/>
-                <div class="flex-fill"><t t-esc="tx.amount"/> CFA</div>
-                <div class="flex-fill text-end" t-esc="tx.payment_method"/>
+              <div class="d-flex fw-bold border-bottom pb-1 mb-2 small text-uppercase">
+                <div class="flex-fill">Opérateur</div>
+                <div class="flex-fill">Plaque</div>
+                <div class="flex-fill">Date</div>
+                <div class="flex-fill">Heure</div>
+                <div class="flex-fill">Montant</div>
+                <div class="flex-fill text-end">Paiement</div>
               </div>
-            </t>
-          </div>
 
-          <div class="text-center mt-2" t-if="state.transactions.length > state.itemsPerPage">
-            <button class="btn btn-sm btn-outline-secondary me-2"
-                    t-on-click="() => this.changePage(-1)"
-                    t-att-disabled="state.currentPage === 1">Précédent</button>
-            <span class="mx-2">Page <t t-esc="state.currentPage"/></span>
-            <button class="btn btn-sm btn-outline-secondary"
-                    t-on-click="() => this.changePage(1)"
-                    t-att-disabled="(state.currentPage * state.itemsPerPage) >= state.transactions.length">Suivant</button>
-          </div>
+              <div class="transaction-list">
+                <t t-foreach="state.paginated" t-as="tx" t-key="tx.id">
+                  <div class="d-flex transaction-line">
+                    <div class="flex-fill" t-esc="tx.operator"/>
+                    <div class="flex-fill" t-esc="tx.plate"/>
+                    <div class="flex-fill" t-esc="tx.date"/>
+                    <div class="flex-fill" t-esc="tx.time"/>
+                    <div class="flex-fill"><t t-esc="tx.amount"/> CFA</div>
+                    <div class="flex-fill text-end" t-esc="tx.payment_method"/>
+                  </div>
+                </t>
+              </div>
 
+              <div class="text-center mt-2" t-if="state.transactions.length > state.itemsPerPage">
+                <button class="btn btn-sm btn-outline-secondary me-2"
+                        t-on-click="() => this.changePage(-1)"
+                        t-att-disabled="state.currentPage === 1">Précédent</button>
+                <span class="mx-2">Page <t t-esc="state.currentPage"/></span>
+                <button class="btn btn-sm btn-outline-secondary"
+                        t-on-click="() => this.changePage(1)"
+                        t-att-disabled="(state.currentPage * state.itemsPerPage) >= state.transactions.length">Suivant</button>
+              </div>
+            </div>
         </div>
 
         <!-- Clavier rapide -->
         <div style="width: 300px;" class="ps-3">
           <div class="border rounded p-3 bg-white d-flex flex-column gap-3">
+
+            <!-- Type et catégorie détectée -->
             <div class="text-center py-3 rounded border" style="background-color: #f8f9fa;">
               <t t-if="state.detected_type">
                 <div class="fs-6 text-dark">
@@ -68,14 +72,27 @@
                 </div>
               </t>
             </div>
+
+            <!-- Boutons de paiement -->
             <button class="btn btn-secondary btn-pay" t-on-click="openManualModal">
               Payer manuellement
             </button>
             <button class="btn btn-success btn-pay" t-on-click="openMobileMoneyModal">
               Payer via Mobile Money
             </button>
+
+            <!-- Nouvelle section plaque -->
+            <div class="text-center py-3 rounded border" style="background-color: #f8f9fa;; min-height: 60px;">
+              <t t-if="state.detected_plate">
+                <div class="fs-6 text-dark">
+                  <strong>Plaque détectée </strong>
+                  <span class="text-muted"> — <t t-esc="state.detected_plate"/></span>
+                </div>
+              </t>
+            </div>
           </div>
         </div>
+
 
         <!-- Modal : Paiement Manuel -->
         <t t-if="state.showModal">
@@ -83,7 +100,8 @@
                style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1040;"></div>
 
           <div class="modal-content bg-white p-4 rounded shadow"
-               style="width: 700px; margin:auto; top:15%; position:fixed; left:0; right:0; z-index:1055;">
+              style="width: 700px; max-height: 80vh; overflow-y: auto; margin:auto; top:10%; position:absolute; left:0; right:0; z-index:1055;">
+
 
             <div class="d-flex justify-content-between" style="gap: 20px;">
               <div style="flex: 1;">
@@ -146,7 +164,8 @@
               style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1040;"></div>
 
           <div class="modal-content bg-white p-4 rounded shadow"
-              style="width: 700px; margin:auto; top:15%; position:fixed; left:0; right:0; z-index:1055;">
+              style="width: 700px; max-height: 90vh; overflow-y: auto; margin:auto; top:10%; position:absolute; left:0; right:0; z-index:1055;">
+
 
             <div class="d-flex justify-content-between" style="gap: 20px;">
               <div style="flex: 1;">
@@ -215,16 +234,7 @@
         </t>
 
       </div>
-
-      <!-- Footer -->
-      <div class="mt-4 p-3 rounded bg-warning text-dark text-center">
-        <t t-if="state.detected_plate">
-          <strong>Plaque détectée :</strong> <span class="fw-bold" t-esc="state.detected_plate"/>
-        </t>
-        <t t-else="">Aucune plaque détectée</t>
-      </div>
-
-       
+  
       <t t-if="state.showCloseConfirm">
         <div class="modal-backdrop fade show"
             style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1040;"></div>

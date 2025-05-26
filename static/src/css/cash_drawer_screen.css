@@ -1,59 +1,50 @@
-/* ---------- Conteneur principal ---------------------------- */
 .cash-drawer-screen {
-    /* image + couleur de secours */
-    background: url("/anpr_peage_manager/static/src/img/background_cash_.jpg") center/cover no-repeat;
+    background: url("/anpr_peage_manager/static/src/img/background_cash.png") center/cover no-repeat;
     background-color: #ffffff;
-
     color: #ffffff;
-    min-height: 100vh;
 
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
     text-align: center;
-
     padding: 2rem;
     font-family: "Segoe UI", sans-serif;
 
     position: relative;
-    /* pour le ::before et le z-index */
+    max-height: 100vh;
+    /* limite la hauteur */
+    overflow-y: auto;
+    /* scroll activé */
 }
 
-/* ---------- Voile d’atténuation ---------------------------- */
 .cash-drawer-screen::before {
     content: "";
     position: absolute;
     inset: 0;
-    background: rgba(255, 255, 255, 0.25);
-    /* 25 % de blanc seulement  */
-    /* pas de backdrop-filter → l’image reste nette */
+    background: transparent;
     z-index: 0;
 }
 
-/* Tous les enfants au-dessus du voile */
 .cash-drawer-screen>* {
     position: relative;
     z-index: 1;
+    flex-shrink: 0;
+    /* évite que les éléments disparaissent (comme la date) */
 }
 
-/* ---------- Avatar + pulse --------------------------------- */
-/* Anneau autour de l’avatar – intégralement blanc */
+/* Avatar */
 .avatar-ring {
     width: 120px;
     height: 120px;
     border: 4px solid transparent;
-    /* trait blanc */
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     margin-bottom: 1.25rem;
-
     animation: pulseRing 2.4s ease-out infinite;
 }
 
-/* Halo blanc translucide */
 @keyframes pulseRing {
     0% {
         box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.6);
@@ -74,63 +65,7 @@
     border-radius: 50%;
 }
 
-/* ---------- Textes ----------------------------------------- */
-.user-name {
-    font-size: 1.6rem;
-    font-weight: 600;
-    margin: 0 0 0.75rem;
-}
-
-.amount-label,
-.totals-box,
-.totals-box.small {
-    color: #eeeeee;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, .4);
-}
-
-.amount-value {
-    font-size: 2.1rem;
-    font-weight: 700;
-    margin: 0 0 2rem;
-    color: #ffffff;
-    text-shadow: 0 2px 6px rgba(0, 0, 0, .6);
-}
-
-/* ---------- Bouton ----------------------------------------- */
-.btn-open {
-    width: 100%;
-    max-width: 340px;
-    padding: .9rem 2rem;
-    font-size: 1.05rem;
-
-    background: transparent;
-    color: #ffffff;
-    border: 2px solid #ffffff;
-    border-radius: 6px;
-
-    transition: all .2s;
-}
-
-/* survol : fond transparent, bordure et texte blancs */
-.btn-open:hover {
-    background: transparent;
-    color: #ffffff;
-    border: 2px solid #ffffff;
-    box-shadow: 0 4px 12px rgba(255, 255, 255, .25);
-}
-
-.btn-open:active {
-    transform: scale(0.98);
-}
-
-/* ---------- Date ------------------------------------------- */
-.date-display {
-    margin-top: 2.5rem;
-    font-size: 0.9rem;
-    color: #ffffff;
-    opacity: 0.8;
-}
-
+/* Totaux */
 .totals-row {
     display: flex;
     flex-wrap: wrap;
@@ -153,10 +88,95 @@
     transform: scale(1.01);
 }
 
-.divider {
-    width: 60%;
-    border: 0;
-    height: 1px;
-    background: rgba(255, 255, 255, 0.3);
-    margin: 1.5rem 0;
+.amount-label,
+.totals-box {
+    color: #eeeeee;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, .4);
+}
+
+.amount-value {
+    font-size: 2.1rem;
+    font-weight: 700;
+    margin-bottom: 2rem;
+    color: #ffffff;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, .6);
+}
+
+/* Boutons */
+.actions-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 2rem;
+    width: 100%;
+    max-width: 720px;
+}
+
+.btn-open,
+.btn-report {
+    width: 100%;
+    max-width: 340px;
+    padding: .9rem 2rem;
+    font-size: 1.05rem;
+    background: transparent;
+    color: #ffffff;
+    border: 2px solid #ffffff;
+    border-radius: 6px;
+    transition: all .2s;
+}
+
+.btn-open:hover,
+.btn-report:hover {
+    box-shadow: 0 4px 12px rgba(255, 255, 255, .25);
+}
+
+.btn-open:active,
+.btn-report:active {
+    transform: scale(0.98);
+}
+
+/* Rapport dropdown */
+.report-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 340px;
+}
+
+.report-dropdown {
+    position: absolute;
+    top: 110%;
+    left: 0;
+    right: 0;
+    background-color: rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    text-align: left;
+    z-index: 10;
+}
+
+.report-dropdown div {
+    padding: 0.75rem 1.2rem;
+    cursor: pointer;
+    color: #ffffff;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.report-dropdown div:last-child {
+    border-bottom: none;
+}
+
+.report-dropdown div:hover {
+    background-color: rgba(255, 255, 255, 0.25);
+}
+
+/* Date */
+.date-display {
+    margin-top: 2.5rem;
+    font-size: 0.9rem;
+    color: #ffffff;
+    opacity: 0.8;
+    margin-bottom: 1rem;
+    transition: opacity 0.3s ease;
 }
