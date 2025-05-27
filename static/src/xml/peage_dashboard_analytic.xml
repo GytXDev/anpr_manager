@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="anpr_peage_dashboard_analytic" owl="1">
+        <div class="anpr_peage_dashboard_analytic" >
+        </div>
+    </t>
+</templates>

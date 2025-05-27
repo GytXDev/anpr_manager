@@ -46,13 +46,15 @@
 
           <t t-if="state.showReportMenu">
             <div class="report-dropdown">
-              <div t-on-click="() => sendReport('daily')">Journalier</div>
-              <div t-on-click="() => sendReport('weekly')">Hebdomadaire</div>
-              <div t-on-click="() => sendReport('monthly')">Mensuel</div>
-              <div t-on-click="() => sendReport('quarterly')">Trimestriel</div>
-              <div t-on-click="() => sendReport('yearly')">Annuel</div>
+              <div t-on-click="sendReport.bind(this, 'daily')">Journalier</div>
+              <div t-on-click="sendReport.bind(this, 'weekly')">Hebdomadaire</div>
+              <div t-on-click="sendReport.bind(this, 'monthly')">Mensuel</div>
+              <div t-on-click="sendReport.bind(this, 'quarterly')">Trimestriel</div>
+              <div t-on-click="sendReport.bind(this, 'semiannual')">Semestriel</div>
+              <div t-on-click="sendReport.bind(this, 'yearly')">Annuel</div>
             </div>
           </t>
+
         </div>
       </div>
 
