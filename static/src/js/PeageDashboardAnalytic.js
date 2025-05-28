@@ -3,6 +3,7 @@
 import { Component, onMounted, useState } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { rpc } from "@web/core/network/rpc";
+import { loadJS } from "@web/core/assets";
 
 function formatCurrency(amount) {
     return new Intl.NumberFormat("fr-FR", {
@@ -24,6 +25,8 @@ export class PeageDashboardAnalytic extends Component {
         this.donutRef = useState({ el: null });
 
         onMounted(async () => {
+            await loadJS("https://cdn.jsdelivr.net/npm/chart.js");
+            console.log("Chart.js loaded:", typeof Chart);
             await this.loadData();
             this._renderCharts();
         });
@@ -42,19 +45,24 @@ export class PeageDashboardAnalytic extends Component {
 
             const totalGlobal = result.data.reduce((acc, user) => acc + user.total, 0);
 
-            console.log("📊 Liste des caissiers avec leurs chiffres d'affaires :");
+            console.log("\ud83d\udcca Liste des caissiers avec leurs chiffres d'affaires :");
             result.data.forEach((user) => {
                 const percent = totalGlobal > 0 ? ((user.total / totalGlobal) * 100).toFixed(2) : 0;
                 console.log(`- ${user.name} → ${user.total.toLocaleString()} CFA (${percent}%)`);
             });
 
-            console.log(`\n💰 Total Global : ${totalGlobal.toLocaleString()} CFA`);
+            console.log(`\n\ud83d\udcb0 Total Global : ${totalGlobal.toLocaleString()} CFA`);
         }
 
         this.state.loading = false;
     }
 
     _renderCharts() {
+        if (typeof Chart !== "function") {
+            console.error("Chart.js n'est pas chargé correctement.");
+            return;
+        }
+
         if (this.chartRef.el) {
             const ctx = this.chartRef.el.getContext("2d");
 
@@ -68,18 +76,37 @@ export class PeageDashboardAnalytic extends Component {
                     datasets: [{
                         label: "Transactions mensuelles",
                         data: this.state.monthly,
-                        backgroundColor: "#3B82F6"
+                        backgroundColor: "#3B82F6",
+                        borderRadius: 8,
+                        barThickness: 24
                     }]
                 },
                 options: {
                     responsive: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
                     scales: {
                         y: {
                             beginAtZero: true,
                             ticks: {
                                 callback: function (value) {
                                     return new Intl.NumberFormat("fr-FR").format(value) + " CFA";
-                                }
+                                },
+                                color: "#6B7280"
+                            },
+                            grid: {
+                                color: "#E5E7EB"
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                color: "#6B7280"
+                            },
+                            grid: {
+                                display: false
                             }
                         }
                     }
@@ -101,6 +128,7 @@ export class PeageDashboardAnalytic extends Component {
                             '#3B82F6', '#10B981', '#F59E0B', '#EF4444',
                             '#6366F1', '#8B5CF6', '#EC4899', '#F472B6',
                         ],
+                        borderWidth: 2
                     }]
                 },
                 options: {
@@ -109,12 +137,14 @@ export class PeageDashboardAnalytic extends Component {
                             position: 'bottom',
                             labels: {
                                 color: '#374151',
-                                boxWidth: 14
+                                usePointStyle: true,
+                                boxWidth: 12
                             }
                         }
                     },
                     responsive: true,
-                    maintainAspectRatio: false
+                    maintainAspectRatio: false,
+                    cutout: '70%'
                 }
             });
         }

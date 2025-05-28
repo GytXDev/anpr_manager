@@ -33,11 +33,10 @@
             'anpr_peage_manager/static/src/xml/peage_main_app.xml',
             'anpr_peage_manager/static/src/xml/peage_dashboard_analytic.xml',
             # CSS
-            'https://cdn.tailwindcss.com',
-            'https://cdn.jsdelivr.net/npm/daisyui@latest',
             'anpr_peage_manager/static/src/css/dashboard.css',
             'anpr_peage_manager/static/src/css/cash_drawer_screen.css',
             'anpr_peage_manager/static/src/css/peage_dashboard_analytic.css',
+            "anpr_peage_manager/static/src/css/output.css",
         ],
     },
     'installable': True,
