@@ -1,7 +1,74 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
-    <t t-name="anpr_peage_dashboard_analytic" owl="1">
-        <div class="anpr_peage_dashboard_analytic" >
+  <t t-name="anpr_peage_dashboard_analytic" owl="1">
+    <div class="p-6 bg-gray-50 space-y-6 min-h-screen">
+
+      <!-- Header stats -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <t t-set="stats" t-value="globalStats()" />
+        <t t-foreach="[{
+            label: 'MANUEL', value: stats.total_manual
+          }, {
+            label: 'MOBILE', value: stats.total_mobile
+          }, {
+            label: 'GLOBAL', value: stats.total
+          }, {
+            label: 'Transactions', value: stats.transactions
+          }]" t-as="card" t-key="card.label">
+          <div class="bg-white rounded-xl shadow-md p-4">
+            <div class="text-sm text-gray-500 font-medium">Total <t t-esc="card.label"/></div>
+            <div class="text-xl font-semibold text-gray-800 mt-1" t-esc="card.label === 'Transactions' ? card.value : formatCurrency(card.value)" />
+          </div>
+        </t>
+      </div>
+
+      <!-- Bar chart -->
+      <div class="bg-white rounded-xl shadow-md p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-semibold text-gray-700">Transactions mensuelles</h2>
         </div>
-    </t>
+        <canvas t-ref="chartRef" height="100"></canvas>
+      </div>
+
+      <!-- Période -->
+      <div class="text-center text-sm text-gray-500" t-if="!state.loading &amp;&amp; state.start &amp;&amp; state.end">
+        Données du <t t-esc="state.start" /> au <t t-esc="state.end" />
+      </div>
+
+      <!-- Caissiers + Donut -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Caissier cards -->
+        <div class="lg:col-span-2 space-y-4">
+          <t t-foreach="state.stats" t-as="user" t-key="user.id">
+            <div class="bg-white rounded-xl shadow-md flex items-center justify-between p-4">
+              <div class="flex items-center space-x-4">
+                <img t-att-src="user.avatar" class="w-12 h-12 rounded-full object-cover border" />
+                <div>
+                  <h3 class="font-semibold text-gray-800 text-sm" t-esc="user.name" />
+                  <p class="text-gray-500 text-xs" t-esc="formatCurrency(user.total)" />
+                </div>
+              </div>
+              <button class="bg-blue-600 text-white text-sm px-4 py-2 rounded-md hover:bg-blue-700 transition">
+                Voir les transactions
+              </button>
+            </div>
+          </t>
+        </div>
+
+        <!-- Donut -->
+        <div class="bg-white rounded-xl shadow-md p-4">
+          <h2 class="text-lg font-semibold text-gray-700 text-center mb-4">Répartition par caissier</h2>
+          <div class="flex items-center justify-center h-full">
+            <canvas t-ref="donutRef" height="200"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="text-center text-sm text-gray-400" t-if="state.loading">
+        Chargement en cours...
+      </div>
+
+    </div>
+  </t>
 </templates>

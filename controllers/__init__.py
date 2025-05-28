@@ -2,3 +2,4 @@
 from . import main
 from . import pay
 from . import report
+from . import analytic_dashboard

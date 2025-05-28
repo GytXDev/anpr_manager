@@ -1,0 +1,88 @@
+# anpr_peage_manager\controllers\analytic_dashboard.py
+from odoo import http
+from odoo.http import request
+from datetime import datetime, timedelta
+from pytz import timezone
+import logging
+
+_logger = logging.getLogger(__name__)
+
+def now_gabon():
+    return datetime.now(timezone("Africa/Libreville")).replace(tzinfo=None)
+
+def compute_date_range(period):
+    today = now_gabon().date()
+    if period == "daily":
+        start = datetime.combine(today, datetime.min.time())
+        end = datetime.combine(today, datetime.max.time())
+    elif period == "weekly":
+        start = datetime.combine(today - timedelta(days=today.weekday()), datetime.min.time())
+        end = start + timedelta(days=6, hours=23, minutes=59, seconds=59)
+    elif period == "monthly":
+        start = datetime(today.year, today.month, 1)
+        end = datetime(today.year + (today.month // 12), (today.month % 12) + 1, 1) - timedelta(seconds=1)
+    elif period == "quarterly":
+        quarter = (today.month - 1) // 3 + 1
+        start_month = 3 * (quarter - 1) + 1
+        start = datetime(today.year, start_month, 1)
+        end = datetime(today.year, start_month + 3, 1) - timedelta(seconds=1)
+    elif period == "semiannual":
+        start = datetime(today.year, 1 if today.month <= 6 else 7, 1)
+        end = datetime(today.year, 7 if today.month <= 6 else 13, 1) - timedelta(seconds=1)
+    elif period == "yearly":
+        start = datetime(today.year, 1, 1)
+        end = datetime(today.year + 1, 1, 1) - timedelta(seconds=1)
+    else:
+        raise ValueError("Période inconnue")
+    return start, end
+
+class PeageAnalyticDashboardController(http.Controller):
+
+    @http.route('/anpr_peage/analytic_data', type='json', auth='user')
+    def get_analytic_data(self, period):
+        try:
+            start, end = compute_date_range(period)
+            caissier_group = request.env.ref("anpr_peage_manager.group_peage_caissier")
+            users = request.env['res.users'].sudo().search([('groups_id', 'in', caissier_group.id)])
+            result = []
+            monthly_stats = [0] * 12  # index 0 = janvier, 11 = décembre
+
+            for user in users:
+                all_logs = request.env['anpr.log'].sudo().search([
+                    ('user_id', '=', user.id),
+                    ('paid_at', '>=', start.replace(month=1, day=1)),
+                    ('paid_at', '<=', end),
+                    ('payment_status', '=', 'success')
+                ])
+
+                logs = [log for log in all_logs if start <= log.paid_at <= end]
+
+                for log in all_logs:
+                    month = log.paid_at.month - 1
+                    monthly_stats[month] += log.amount or 0
+
+                manual_total = sum(log.amount for log in logs if log.payment_method == 'manual')
+                mobile_total = sum(log.amount for log in logs if log.payment_method == 'mobile')
+                transaction_count = len(logs)
+
+                result.append({
+                    'id': user.id,
+                    'name': user.name,
+                    'avatar': f"/web/image/res.users/{user.id}/image_128",
+                    'manual_total': manual_total,
+                    'mobile_total': mobile_total,
+                    'total': manual_total + mobile_total,
+                    'transactions': transaction_count
+                })
+
+            return {
+                'status': 'success',
+                'data': result,
+                'monthly': monthly_stats,
+                'start': start.strftime('%d/%m/%Y'),
+                'end': end.strftime('%d/%m/%Y')
+            }
+
+        except Exception as e:
+            _logger.error("Erreur dans le backend analytique : %s", e)
+            return {'status': 'error', 'message': str(e)}
