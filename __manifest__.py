@@ -20,19 +20,15 @@
     ],
     'assets': {
         'web.assets_backend': [
-            # D'abord les composants enfants
+            'https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js',
             'anpr_peage_manager/static/src/js/CashDrawerScreen.js',
             'anpr_peage_manager/static/src/js/PeageDashboard.js',
-            # Puis le composant principal
             'anpr_peage_manager/static/src/js/PeageMainApp.js',
             'anpr_peage_manager/static/src/js/PeageDashboardAnalytic.js',
-            'https://cdn.jsdelivr.net/npm/chart.js',
-            # Puis les templates
             'anpr_peage_manager/static/src/xml/cash_drawer_screen.xml',
             'anpr_peage_manager/static/src/xml/PeageDashboard.xml',
             'anpr_peage_manager/static/src/xml/peage_main_app.xml',
             'anpr_peage_manager/static/src/xml/peage_dashboard_analytic.xml',
-            # CSS
             'anpr_peage_manager/static/src/css/dashboard.css',
             'anpr_peage_manager/static/src/css/cash_drawer_screen.css',
             'anpr_peage_manager/static/src/css/peage_dashboard_analytic.css',
