@@ -36,7 +36,7 @@
             value: stats.transactions,
             color: 'tw-border-t-yellow-500',
             icon: '/anpr_peage_manager/static/src/img/transaction.png',
-            bg: 'tw-bg-yellow-100',
+            bg: 'tw-bg-white-100',
             diff: 0.0
           }
         ]" t-as="card" t-key="card.label">
@@ -58,7 +58,7 @@
 
             <!-- Cercle légèrement agrandi avec icône centrée et discrète -->
             <div class="tw-w-12 tw-h-12 tw-rounded-full tw-border tw-border-gray-300 tw-bg-white tw-flex tw-items-center tw-justify-center tw-shadow-sm" t-att-class="card.bg">
-              <img t-att-src="card.icon" class="tw-w-5 tw-h-5" />
+              <img t-att-src="card.icon" class="tw-w-6 tw-h-6 sm:tw-w-7 sm:tw-h-7" />
             </div>
           </div>
         </t>
@@ -67,7 +67,9 @@
       <!-- Bar chart -->
       <div class="tw-bg-white tw-rounded-xl tw-shadow tw-p-6">
         <div class="tw-flex tw-items-center tw-justify-between tw-mb-5">
-          <h2 class="tw-text-xl tw-font-bold tw-text-gray-800">Transactions mensuelles</h2>
+          <div class="tw-text-base tw-font-medium tw-text-gray-900">
+            Transactions mensuelles
+          </div>
         </div>
         <div class="tw-relative tw-h-[300px]">
           <canvas t-ref="chartRef" class="tw-w-full tw-h-full"></canvas>
