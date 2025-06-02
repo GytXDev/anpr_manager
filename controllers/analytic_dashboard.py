@@ -1,4 +1,5 @@
-# anpr_peage_manager\controllers\analytic_dashboard.py
+# anpr_peage_manager/controllers/analytic_dashboard.py
+
 from odoo import http
 from odoo.http import request
 from datetime import datetime, timedelta
@@ -45,21 +46,29 @@ class PeageAnalyticDashboardController(http.Controller):
             caissier_group = request.env.ref("anpr_peage_manager.group_peage_caissier")
             users = request.env['res.users'].sudo().search([('groups_id', 'in', caissier_group.id)])
             result = []
-            monthly_stats = [0] * 12  # index 0 = janvier, 11 = décembre
+
+            # On initialise deux tableaux de 12 zéros :
+            monthly_manual = [0] * 12
+            monthly_mobile = [0] * 12
 
             for user in users:
+                # Récupère tous les logs depuis le 1er janvier de cette année jusqu’à la date « end »
                 all_logs = request.env['anpr.log'].sudo().search([
                     ('user_id', '=', user.id),
                     ('paid_at', '>=', start.replace(month=1, day=1)),
                     ('paid_at', '<=', end),
                     ('payment_status', '=', 'success')
                 ])
-
+                # Ne garder que ceux dont paid_at est bien entre start et end
                 logs = [log for log in all_logs if start <= log.paid_at <= end]
 
+                # On remplit les deux tableaux mois par mois
                 for log in all_logs:
-                    month = log.paid_at.month - 1
-                    monthly_stats[month] += log.amount or 0
+                    midx = log.paid_at.month - 1
+                    if log.payment_method == 'manual':
+                        monthly_manual[midx] += log.amount or 0
+                    elif log.payment_method == 'mobile':
+                        monthly_mobile[midx] += log.amount or 0
 
                 manual_total = sum(log.amount for log in logs if log.payment_method == 'manual')
                 mobile_total = sum(log.amount for log in logs if log.payment_method == 'mobile')
@@ -78,7 +87,9 @@ class PeageAnalyticDashboardController(http.Controller):
             return {
                 'status': 'success',
                 'data': result,
-                'monthly': monthly_stats,
+                # On renvoie maintenant les deux tableaux mensuels
+                'monthly_manual': monthly_manual,
+                'monthly_mobile': monthly_mobile,
                 'start': start.strftime('%d/%m/%Y'),
                 'end': end.strftime('%d/%m/%Y')
             }

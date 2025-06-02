@@ -57,7 +57,7 @@
             value: stats.transactions,
             color: 'tw-border-t-yellow-500',
             icon: '/anpr_peage_manager/static/src/img/transaction.png',
-            bg: 'tw-bg-yellow-100'
+            bg: 'tw-bg-white-100'
           }
         ]" t-as="card" t-key="card.label">
           <div class="tw-bg-white tw-rounded-xl tw-shadow-sm tw-border-t-4 tw-p-6 tw-flex tw-items-center tw-justify-between" t-att-class="card.color">
@@ -79,17 +79,18 @@
         </t>
       </div>
 
-      <!-- Bar chart : on donne l’ID "peageBarChart" -->
-      <div class="tw-bg-white tw-rounded-xl tw-shadow tw-p-6">
-        <div class="tw-flex tw-items-center tw-justify-between tw-mb-5">
+      <!-- Bar chart -->
+      <div class="tw-bg-white tw-rounded-xl tw-shadow tw-p-4">
+        <div class="tw-flex tw-items-center tw-justify-between tw-mb-4">
           <div class="tw-text-base tw-font-medium tw-text-gray-900">
             Transactions mensuelles
           </div>
         </div>
-        <div class="tw-relative tw-h-[300px]">
+        <div class="tw-w-full tw-h-[350px]">
           <canvas id="peageBarChart" class="tw-w-full tw-h-full"></canvas>
         </div>
       </div>
+
 
       <!-- Période affichée -->
       <div class="tw-text-center tw-text-sm tw-text-gray-500"
@@ -116,9 +117,9 @@
           </t>
         </div>
         <div class="tw-bg-white tw-rounded-xl tw-shadow tw-p-6">
-          <div class="tw-text-base tw-font-medium tw-text-gray-900">
+          <!-- <div class="tw-text-base tw-font-medium tw-text-gray-900">
             Répartition par caissier
-          </div>
+          </div> -->
           <div class="tw-relative tw-h-[260px]">
             <canvas id="peageDonutChart" class="tw-w-full tw-h-full"></canvas>
           </div>
