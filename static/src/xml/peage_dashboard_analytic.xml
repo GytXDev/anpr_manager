@@ -104,7 +104,7 @@
           <t t-foreach="state.stats" t-as="user" t-key="user.id">
             <div class="tw-bg-white tw-rounded-xl tw-shadow tw-flex tw-items-center tw-justify-between tw-p-5 hover:tw-shadow-md">
               <div class="tw-flex tw-items-center tw-space-x-4">
-                <img t-att-src="user.avatar" class="tw-w-14 tw-h-14 tw-rounded-full tw-object-cover tw-border" />
+                <img t-att-src="user.avatar" class="tw-w-10 tw-h-10 tw-rounded-full tw-object-cover tw-border" />
                 <div>
                   <h3 class="tw-font-bold tw-text-gray-800 tw-text-base" t-esc="user.name" />
                   <p class="tw-text-gray-500 tw-text-sm" t-esc="formatCurrency(user.total)" />
