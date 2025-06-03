@@ -100,26 +100,44 @@
 
       <!-- Caissiers + Donut -->
       <div class="tw-grid tw-grid-cols-1 lg:tw-grid-cols-3 tw-gap-6">
-        <div class="lg:tw-col-span-2 tw-space-y-5">
+
+        <!-- Conteneur unique pour tous les caissiers -->
+        <div class="lg:tw-col-span-2 tw-bg-white tw-rounded-xl tw-shadow tw-overflow-hidden">
           <t t-foreach="state.stats" t-as="user" t-key="user.id">
-            <div class="tw-bg-white tw-rounded-xl tw-shadow tw-flex tw-items-center tw-justify-between tw-p-5 hover:tw-shadow-md">
-              <div class="tw-flex tw-items-center tw-space-x-4">
-                <img t-att-src="user.avatar" class="tw-w-10 tw-h-10 tw-rounded-full tw-object-cover tw-border" />
+            <div
+              class="
+                tw-flex tw-items-center tw-justify-between
+                tw-p-4
+                tw-border-b tw-border-gray-200
+                last:tw-border-0
+                hover:tw-bg-gray-50 tw-transition-colors
+              ">
+              
+              <!-- Avatar + Nom + Total -->
+              <div class="tw-flex tw-items-center tw-space-x-3">
+                <div class="tw-w-10 tw-h-10 tw-rounded-full tw-bg-blue-100 tw-flex tw-items-center tw-justify-center">
+                  <img t-att-src="user.avatar" class="tw-w-8 tw-h-8 tw-rounded-full tw-object-cover" />
+                </div>
                 <div>
-                  <h3 class="tw-font-bold tw-text-gray-800 tw-text-base" t-esc="user.name" />
-                  <p class="tw-text-gray-500 tw-text-sm" t-esc="formatCurrency(user.total)" />
+                  <h3 class="tw-text-base tw-font-medium tw-text-gray-800" t-esc="user.name" />
+                  <p class="tw-text-sm tw-text-gray-600 tw-mt-0.5" t-esc="formatCurrency(user.total)" />
                 </div>
               </div>
-              <button class="tw-bg-blue-600 tw-text-white tw-text-sm tw-font-medium tw-px-5 tw-py-2 tw-rounded-lg hover:tw-bg-blue-700 tw-transition-all">
-                Voir les transactions
-              </button>
+              
+              <!-- Lien « Voir » discret appelle showTransactions -->
+              <a
+                class="
+                  tw-text-indigo-600 tw-text-sm tw-font-medium
+                  hover:tw-text-indigo-800 tw-transition-colors
+                "      
+              >
+                Voir
+              </a>
             </div>
           </t>
         </div>
+
         <div class="tw-bg-white tw-rounded-xl tw-shadow tw-p-6">
-          <!-- <div class="tw-text-base tw-font-medium tw-text-gray-900">
-            Répartition par caissier
-          </div> -->
           <div class="tw-relative tw-h-[260px]">
             <canvas id="peageDonutChart" class="tw-w-full tw-h-full"></canvas>
           </div>
