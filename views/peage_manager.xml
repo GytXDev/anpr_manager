@@ -50,7 +50,7 @@
               sequence="99"/> -->
 
     <!-- Vue de liste : Historique des Transactions ANPR -->
-    <!-- <record id="view_anpr_log_list" model="ir.ui.view">
+   <record id="view_anpr_log_list" model="ir.ui.view">
       <field name="name">anpr.log.list</field>
       <field name="model">anpr.log</field>
       <field name="arch" type="xml">
@@ -68,10 +68,11 @@
     <record id="action_anpr_log_list_only" model="ir.actions.act_window">
       <field name="name">Historique des Transactions</field>
       <field name="res_model">anpr.log</field>
-      <field name="view_mode">list</field>
+      <field name="view_mode">list,form</field>
       <field name="view_id" ref="view_anpr_log_list"/>
     </record>
 
+     <!-- 
     <menuitem id="menu_anpr_log_list"
               name="Historique des transactions"
               parent="menu_anpr_peage_root"

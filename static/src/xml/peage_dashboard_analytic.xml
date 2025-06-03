@@ -129,7 +129,9 @@
                 class="
                   tw-text-indigo-600 tw-text-sm tw-font-medium
                   hover:tw-text-indigo-800 tw-transition-colors
-                "      
+                "
+                href='#'
+                t-on-click="(ev) =>  showTransactions(user.id, ev) "   
               >
                 Voir
               </a>

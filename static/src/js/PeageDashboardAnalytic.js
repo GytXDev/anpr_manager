@@ -65,6 +65,11 @@ export class PeageDashboardAnalytic extends Component {
         this._renderCharts();
     }
 
+    showTransactions(userId, ev) {
+        ev.preventDefault();
+        window.location.href = `/anpr_peage/transactions/${userId}`;
+    }
+
     _renderCharts() {
         // 1) Vérifier que Chart.js est bien chargé
         if (typeof window.Chart !== "function") {

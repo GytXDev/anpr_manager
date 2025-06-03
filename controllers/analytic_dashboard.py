@@ -97,3 +97,19 @@ class PeageAnalyticDashboardController(http.Controller):
         except Exception as e:
             _logger.error("Erreur dans le backend analytique : %s", e)
             return {'status': 'error', 'message': str(e)}
+
+    @http.route('/anpr_peage/transactions/<int:user_id>', type='http', auth='user')
+    def redirect_to_transactions(self, user_id, **kwargs):
+        try:
+            action = request.env.ref('anpr_peage_manager.action_anpr_log_list_only').sudo().read()[0]
+            domain = [('user_id', '=', user_id), ('payment_status', '=', 'success')]
+
+            return request.redirect(
+                f"/web#action={action['id']}"
+                f"&model=anpr.log"
+                f"&view_type=list"
+                f"&domain={domain}"
+            )
+        except Exception as e:
+            _logger.error("Erreur lors de la redirection vers la vue liste des transactions : %s", e)
+            return request.not_found()
