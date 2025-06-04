@@ -1,7 +1,7 @@
 # anpr_peage_manager/controllers/report.py
 
 from odoo import http
-from odoo.http import request, Response  
+from odoo.http import request
 from datetime import datetime, timedelta
 from pytz import timezone
 from io import BytesIO
@@ -12,30 +12,27 @@ from reportlab.lib.units import mm
 from reportlab.lib import colors
 import base64
 import logging
-import csv  
-
+import xlsxwriter 
+   
 _logger = logging.getLogger(__name__)
 
 def now_gabon():
     return datetime.now(timezone("Africa/Libreville")).replace(tzinfo=None)
 
-
 def compute_date_range(period, start_str=None, end_str=None):
     today = now_gabon().date()
-
-    # Si "custom" et on a start/end en chaînes "YYYY-MM-DD"
+    # Si « custom » avec start_str/end_str passés au format "YYYY-MM-DD"
     if period == "custom" and start_str and end_str:
         start = datetime.strptime(start_str, "%Y-%m-%d")
         end = datetime.strptime(end_str, "%Y-%m-%d") + timedelta(hours=23, minutes=59, seconds=59)
         return start, end
-
-    # Sinon comportement normal :
+    # Sinon, même logique que précédemment
     if period == "daily":
         start = datetime.combine(today, datetime.min.time())
-        end = datetime.combine(today, datetime.max.time())
+        end   = datetime.combine(today, datetime.max.time())
     elif period == "weekly":
         start = datetime.combine(today - timedelta(days=today.weekday()), datetime.min.time())
-        end = start + timedelta(days=6, hours=23, minutes=59, seconds=59)
+        end   = start + timedelta(days=6, hours=23, minutes=59, seconds=59)
     elif period == "monthly":
         start = datetime(today.year, today.month, 1)
         if today.month == 12:
@@ -43,23 +40,22 @@ def compute_date_range(period, start_str=None, end_str=None):
         else:
             end = datetime(today.year, today.month + 1, 1) - timedelta(seconds=1)
     elif period == "quarterly":
-        quarter = (today.month - 1) // 3 + 1
+        quarter     = (today.month - 1) // 3 + 1
         start_month = 3 * (quarter - 1) + 1
-        start = datetime(today.year, start_month, 1)
-        end_month = start_month + 2
+        start       = datetime(today.year, start_month, 1)
+        end_month   = start_month + 2
         if end_month == 12:
             end = datetime(today.year + 1, 1, 1) - timedelta(seconds=1)
         else:
             end = datetime(today.year, end_month + 1, 1) - timedelta(seconds=1)
     elif period == "semiannual":
         start = datetime(today.year, 1 if today.month <= 6 else 7, 1)
-        end = datetime(today.year, 6 if today.month <= 6 else 12, 30, 23, 59, 59)
+        end   = datetime(today.year, 6 if today.month <= 6 else 12, 30, 23, 59, 59)
     elif period == "yearly":
         start = datetime(today.year, 1, 1)
-        end = datetime(today.year, 12, 31, 23, 59, 59)
+        end   = datetime(today.year, 12, 31, 23, 59, 59)
     else:
         raise ValueError("Période inconnue")
-
     return start, end
 
 def generate_report_pdf(period, start, end, user):
@@ -74,14 +70,13 @@ def generate_report_pdf(period, start, end, user):
     elements = []
 
     title = Paragraph(f"<b>Rapport de caisse — {period.capitalize()}</b>", styles['Title'])
-    info = Paragraph(
+    info  = Paragraph(
         f"Caissier : <b>{user.name}</b><br/>"
         f"Période : <b>{start.strftime('%d/%m/%Y')} → {end.strftime('%d/%m/%Y')}</b><br/>"
         f"Généré le : <b>{now_gabon().strftime('%d/%m/%Y %H:%M')}</b>",
         styles['Normal']
     )
-
-    elements.extend([title, Spacer(1, 12), info, Spacer(1, 20)])
+    elements.extend([title, Spacer(1,12), info, Spacer(1,20)])
 
     logs = request.env['anpr.log'].sudo().search([
         ('user_id', '=', user.id),
@@ -92,32 +87,32 @@ def generate_report_pdf(period, start, end, user):
 
     def render_table(label, filtered_logs):
         elements.append(Paragraph(f"<b>{label}</b>", styles['Heading3']))
-        data = [["Date", "Heure", "Plaque", "Montant (CFA)"]]
+        data = [["Date","Heure","Plaque","Montant (CFA)"]]
         total = 0
         for log in filtered_logs:
-            dt = log.paid_at.strftime("%d/%m/%Y")
-            hr = log.paid_at.strftime("%H:%M")
-            plate = log.plate or "-"
+            dt     = log.paid_at.strftime("%d/%m/%Y")
+            hr     = log.paid_at.strftime("%H:%M")
+            plate  = log.plate or "-"
             amount = f"{log.amount:,.0f}"
             data.append([dt, hr, plate, amount])
             total += log.amount
 
-        table = Table(data, colWidths=[60*mm, 40*mm, 40*mm, 40*mm])
+        table = Table(data, colWidths=[60*mm,40*mm,40*mm,40*mm])
         table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('BACKGROUND', (0,0), (-1,0), colors.lightblue),
+            ('TEXTCOLOR',  (0,0), (-1,0), colors.black),
+            ('ALIGN',      (0,0), (-1,-1), 'CENTER'),
+            ('GRID',       (0,0), (-1,-1), 0.5, colors.grey),
+            ('FONTNAME',   (0,0), (-1,0), 'Helvetica-Bold'),
         ]))
-        elements.extend([table, Spacer(1, 10)])
+        elements.extend([table, Spacer(1,10)])
         return total
 
-    total_manual = render_table("Paiements MANUELS", logs.filtered(lambda l: l.payment_method == 'manual'))
-    total_mobile = render_table("Paiements MOBILE", logs.filtered(lambda l: l.payment_method == 'mobile'))
-
+    total_manual = render_table("Paiements MANUELS", logs.filtered(lambda l: l.payment_method=='manual'))
+    total_mobile = render_table("Paiements MOBILE", logs.filtered(lambda l: l.payment_method=='mobile'))
     total_global = total_manual + total_mobile
-    elements.append(Spacer(1, 20))
+
+    elements.append(Spacer(1,20))
     elements.append(Paragraph(f"<b>Total MANUEL :</b> {total_manual:,.0f} CFA", styles['Normal']))
     elements.append(Paragraph(f"<b>Total MOBILE :</b> {total_mobile:,.0f} CFA", styles['Normal']))
     elements.append(Paragraph(f"<b>Total GÉNÉRAL :</b> {total_global:,.0f} CFA", styles['Normal']))
@@ -126,6 +121,30 @@ def generate_report_pdf(period, start, end, user):
     pdf = buffer.getvalue()
     buffer.close()
     return pdf
+
+
+def send_report_email(to_email, subject, body, pdf_data, filename="rapport.pdf"):
+    env = request.env
+    smtp_user = env['ir.mail_server'].sudo().search([], limit=1).smtp_user or 'noreply@example.com'
+
+    attachment = env['ir.attachment'].sudo().create({
+        'name': filename,
+        'type': 'binary',
+        'datas': base64.b64encode(pdf_data).decode('utf-8'),
+        'mimetype': 'application/pdf',
+    })
+
+    mail = env['mail.mail'].sudo().create({
+        'subject': subject,
+        'body_html': f"<p>{body}</p>",
+        'email_to': to_email,
+        'email_from': smtp_user,
+        'attachment_ids': [(6, 0, [attachment.id])],
+    })
+
+    mail.send()
+    _logger.info("✅ Rapport envoyé à %s", to_email)
+
 
 class ANPRReportController(http.Controller):
 
@@ -150,7 +169,7 @@ class ANPRReportController(http.Controller):
         except Exception as e:
             _logger.error("Erreur lors de l'envoi du rapport : %s", e)
             return {'status': 'error', 'message': str(e)}
-
+    
     @http.route(
         '/anpr_peage/download_report_pdf',
         type='http', auth='user', methods=['GET'], csrf=False
@@ -158,16 +177,14 @@ class ANPRReportController(http.Controller):
     def download_report_pdf(self, user_id, period, start=None, end=None, **kwargs):
         try:
             user = request.env['res.users'].sudo().browse(int(user_id))
-            # Maintenant compute_date_range attend aussi (period, start_str, end_str)
             start_dt, end_dt = compute_date_range(period, start, end)
-
             pdf_data = generate_report_pdf(period, start_dt, end_dt, user)
             filename = f"rapport_caissier_{user_id}_{period}.pdf"
             headers = [
                 ('Content-Type', 'application/pdf'),
                 ('Content-Disposition', f'attachment; filename="{filename}"')
             ]
-            return Response(pdf_data, headers=headers)
+            return request.make_response(pdf_data, headers=headers)
         except Exception as e:
             _logger.error("Erreur export PDF : %s", e)
             return request.not_found()
@@ -177,10 +194,14 @@ class ANPRReportController(http.Controller):
         type='http', auth='user', methods=['GET'], csrf=False
     )
     def download_report_excel(self, user_id, period, start=None, end=None, **kwargs):
+        """
+        Génère un fichier XLSX en mémoire grâce à xlsxwriter, puis le renvoie.
+        """
         try:
             user = request.env['res.users'].sudo().browse(int(user_id))
             start_dt, end_dt = compute_date_range(period, start, end)
 
+            # 1) Récupérer les logs validés pour ce caissier et cette période
             logs = request.env['anpr.log'].sudo().search([
                 ('user_id', '=', user.id),
                 ('paid_at', '>=', start_dt),
@@ -188,25 +209,48 @@ class ANPRReportController(http.Controller):
                 ('payment_status', '=', 'success')
             ], order="paid_at asc")
 
+            # 2) Créer le classeur XLSX en mémoire
             output = BytesIO()
-            writer = csv.writer(output, delimiter=";")
-            writer.writerow(["Date", "Heure", "Plaque", "Montant (CFA)", "Methode"])
+            workbook = xlsxwriter.Workbook(output, {'in_memory': True})
+            sheet = workbook.add_worksheet("Rapport")
+
+            # 2.1) Format pour l'en-tête (gras)
+            bold = workbook.add_format({'bold': True})
+
+            # 2.2) Écrire l'en-tête de colonnes
+            headers = ["Date", "Heure", "Plaque", "Montant (CFA)", "Methode"]
+            for col, header in enumerate(headers):
+                sheet.write(0, col, header, bold)
+
+            # 3) Remplir chaque ligne avec les données
+            row = 1
             for log in logs:
-                dt = log.paid_at.strftime("%d/%m/%Y")
-                hr = log.paid_at.strftime("%H:%M")
-                plate = log.plate or "-"
-                amount = f"{log.amount:,.0f}"
-                method = log.payment_method.upper()
-                writer.writerow([dt, hr, plate, amount, method])
-            data = output.getvalue()
+                dt     = log.paid_at.strftime("%d/%m/%Y")
+                hr     = log.paid_at.strftime("%H:%M")
+                plate  = log.plate or "-"
+                amount = log.amount or 0
+                method = (log.payment_method or "").upper()
+
+                sheet.write(row, 0, dt)
+                sheet.write(row, 1, hr)
+                sheet.write(row, 2, plate)
+                sheet.write_number(row, 3, amount)  # écriture numérique
+                sheet.write(row, 4, method)
+                row += 1
+
+            # 4) Fermer le fichier et récupérer le binaire
+            workbook.close()
+            xlsx_data = output.getvalue()
             output.close()
 
-            filename = f"rapport_caissier_{user_id}_{period}.csv"
+            # 5) Préparer la réponse HTTP
+            filename = f"rapport_caissier_{user_id}_{period}.xlsx"
             headers = [
-                ('Content-Type', 'text/csv; charset=utf-8'),
+                ('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
                 ('Content-Disposition', f'attachment; filename="{filename}"')
             ]
-            return Response(data, headers=headers)
+            return request.make_response(xlsx_data, headers=headers)
+
         except Exception as e:
-            _logger.error("Erreur export Excel/CSV : %s", e)
+            _logger.error("Erreur export XLSX : %s", e)
             return request.not_found()
