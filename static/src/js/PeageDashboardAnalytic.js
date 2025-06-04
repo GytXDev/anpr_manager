@@ -17,7 +17,9 @@ export class PeageDashboardAnalytic extends Component {
 
     setup() {
         // 1) La période sélectionnée
-        this.period = useState({ value: "daily" });
+        this.period = useState({ value: "monthly" });
+        this.period.start = "";
+        this.period.end = "";
 
         // 2) Données du dashboard : on stocke deux tableaux mensuels
         this.state = useState({
@@ -69,6 +71,38 @@ export class PeageDashboardAnalytic extends Component {
         ev.preventDefault();
         window.location.href = `/anpr_peage/transactions/${userId}`;
     }
+
+    async loadData() {
+        this.state.loading = true;
+
+        let result;
+
+        if (this.period.value === "custom") {
+            result = await rpc("/anpr_peage/analytic_data_custom", {
+                start: this.period.start,
+                end: this.period.end
+            });
+        } else {
+            result = await rpc("/anpr_peage/analytic_data", {
+                period: this.period.value
+            });
+        }
+
+        if (result.status === "success") {
+            this.state.stats = result.data || [];
+            this.state.monthly_manual = result.monthly_manual || [];
+            this.state.monthly_mobile = result.monthly_mobile || [];
+            this.state.start = result.start;
+            this.state.end = result.end;
+        } else {
+            console.error("Erreur retournée par le back-end :", result.message);
+        }
+
+        this.state.loading = false;
+        this._renderCharts();
+    }
+
+
 
     _renderCharts() {
         // 1) Vérifier que Chart.js est bien chargé

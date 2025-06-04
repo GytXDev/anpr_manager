@@ -17,7 +17,18 @@
             <option value="quarterly">Ce trimestre</option>
             <option value="semiannual">Ce semestre</option>
             <option value="yearly">Cette année</option>
+            <option value="custom">Période personnalisée</option>
           </select>
+
+          <div t-if="period.value === 'custom'" class="tw-flex tw-space-x-2 tw-mt-3">
+            <input type="date" class="tw-border tw-rounded tw-px-3 tw-py-1" t-model="period.start" />
+            <input type="date" class="tw-border tw-rounded tw-px-3 tw-py-1" t-model="period.end" />
+            <button class="tw-bg-blue-600 tw-text-white tw-px-3 tw-py-1 tw-rounded hover:tw-bg-blue-700"
+                    t-on-click="loadCustomRange">
+              Charger
+            </button>
+          </div>
+
           <!-- Icône flèche ▼ -->
           <div class="tw-pointer-events-none tw-absolute tw-inset-y-0 tw-right-2 tw-flex tw-items-center tw-text-gray-500">
             <svg class="tw-w-4 tw-h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">

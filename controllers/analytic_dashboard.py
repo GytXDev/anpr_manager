@@ -113,3 +113,61 @@ class PeageAnalyticDashboardController(http.Controller):
         except Exception as e:
             _logger.error("Erreur lors de la redirection vers la vue liste des transactions : %s", e)
             return request.not_found()
+
+    @http.route('/anpr_peage/analytic_data_custom', type='json', auth='user')
+    def get_analytic_data_custom(self, start, end):
+        try:
+            # Parse dates reçues en format YYYY-MM-DD
+            start_date = datetime.strptime(start, '%Y-%m-%d')
+            end_date = datetime.strptime(end, '%Y-%m-%d')
+            end_date = end_date.replace(hour=23, minute=59, second=59)
+
+            caissier_group = request.env.ref("anpr_peage_manager.group_peage_caissier")
+            users = request.env['res.users'].sudo().search([('groups_id', 'in', caissier_group.id)])
+            result = []
+
+            # Tableaux mensuels init
+            monthly_manual = [0] * 12
+            monthly_mobile = [0] * 12
+
+            for user in users:
+                all_logs = request.env['anpr.log'].sudo().search([
+                    ('user_id', '=', user.id),
+                    ('paid_at', '>=', start_date),
+                    ('paid_at', '<=', end_date),
+                    ('payment_status', '=', 'success')
+                ])
+
+                for log in all_logs:
+                    midx = log.paid_at.month - 1
+                    if log.payment_method == 'manual':
+                        monthly_manual[midx] += log.amount or 0
+                    elif log.payment_method == 'mobile':
+                        monthly_mobile[midx] += log.amount or 0
+
+                manual_total = sum(log.amount for log in all_logs if log.payment_method == 'manual')
+                mobile_total = sum(log.amount for log in all_logs if log.payment_method == 'mobile')
+                transaction_count = len(all_logs)
+
+                result.append({
+                    'id': user.id,
+                    'name': user.name,
+                    'avatar': f"/web/image/res.users/{user.id}/image_128",
+                    'manual_total': manual_total,
+                    'mobile_total': mobile_total,
+                    'total': manual_total + mobile_total,
+                    'transactions': transaction_count
+                })
+
+            return {
+                'status': 'success',
+                'data': result,
+                'monthly_manual': monthly_manual,
+                'monthly_mobile': monthly_mobile,
+                'start': start_date.strftime('%d/%m/%Y'),
+                'end': end_date.strftime('%d/%m/%Y')
+            }
+
+        except Exception as e:
+            _logger.error("❌ Erreur analytique personnalisée : %s", e)
+            return {'status': 'error', 'message': str(e)}
