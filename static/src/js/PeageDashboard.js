@@ -6,20 +6,20 @@ import { rpc } from "@web/core/network/rpc";
 import { useService } from "@web/core/utils/hooks";
 
 const VEHICLE_CONFIG = [
-    [0, "Autre", 100, "Autres"],
-    [1, "Véhicule particulier", 100, "Car"],
+    [0, "Autre", 1500, "Autres"],
+    [1, "Véhicule particulier", 1500, "Car"],
     [2, "Camion", 28000, "Camion"],
-    [3, "Berline", 100, "Car"],
+    [3, "Berline", 1500, "Car"],
     [4, "Minivan", 5000, "4x4"],
     [5, "Camion léger", 28000, "Camion"],
-    [7, "Deux-roues", 100, "Car"],
-    [8, "Tricycle", 100, "Car"],
+    [7, "Deux-roues", 1500, "Car"],
+    [8, "Tricycle", 1500, "Car"],
     [9, "SUV / MPV", 5000, "4x4"],
     [10, "Bus moyen", 7000, "Bus"],
-    [11, "Véhicule motorisé", 100, "Car"],
-    [12, "Véhicule non motorisé", 100, "Car"],
-    [13, "Petite berline", 100, "Car"],
-    [14, "Mini berline", 100, "Car"],
+    [11, "Véhicule motorisé", 1500, "Car"],
+    [12, "Véhicule non motorisé", 1500, "Car"],
+    [13, "Petite berline", 1500, "Car"],
+    [14, "Mini berline", 1500, "Car"],
     [15, "Pickup", 5000, "4x4"],
     [16, "Camion conteneur", 28000, "Camion"],
     [17, "Mini camion / Remorque plateau", 28000, "Camion"],
@@ -28,9 +28,9 @@ const VEHICLE_CONFIG = [
     [20, "Camion citerne", 28000, "Camion"],
     [21, "Bétonnière", 28000, "Camion"],
     [22, "Camion remorqueur", 28000, "Camion"],
-    [23, "Hatchback", 100, "Car"],
-    [24, "Berline classique (Saloon)", 100, "Car"],
-    [25, "Berline sport", 100, "Car"],
+    [23, "Hatchback", 1500, "Car"],
+    [24, "Berline classique (Saloon)", 1500, "Car"],
+    [25, "Berline sport", 1500, "Car"],
     [26, "Minibus", 7000, "Bus"],
 ];
 const CODE_TO_LABEL = new Map(VEHICLE_CONFIG.map(([c, l]) => [c, l]));
@@ -233,7 +233,7 @@ export class PeageDashboard extends Component {
 
     selectVehicleType(cat) {
         this.state.form.vehicle_type = cat;
-        this.state.form.amount = CATEGORY_TO_TARIFF.get(cat) ?? 100;
+        this.state.form.amount = CATEGORY_TO_TARIFF.get(cat) ?? 1500;
         rpc("/anpr_peage/scroll_message", {
             message: `TOTAL: ${this.state.form.amount} CFA`,
             permanent: true,
@@ -292,7 +292,7 @@ export class PeageDashboard extends Component {
 
     selectVehicleTypeMobile(cat) {
         this.state.mobileForm.vehicle_type = cat;
-        this.state.mobileForm.amount = CATEGORY_TO_TARIFF.get(cat) ?? 100;
+        this.state.mobileForm.amount = CATEGORY_TO_TARIFF.get(cat) ?? 1500;
         rpc("/anpr_peage/scroll_message", {
             message: `TOTAL: ${this.state.mobileForm.amount} CFA`,
             permanent: true,
@@ -468,7 +468,7 @@ export class PeageDashboard extends Component {
     }
 
     getAmountFromVehicleTypeCode(code) {
-        return CODE_TO_TARIFF.get(code) ?? 100;
+        return CODE_TO_TARIFF.get(code) ?? 1500;
     }
 
     getVehicleTypeCodeFromLabel(label) {

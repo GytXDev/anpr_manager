@@ -54,54 +54,39 @@
       <!-- Cartes Statistiques -->
       <div class="tw-grid tw-grid-cols-1 sm:tw-grid-cols-2 lg:tw-grid-cols-4 tw-gap-6">
         <t t-set="stats" t-value="globalStats()" />
-        <t t-foreach="[ 
-          {
-            label: 'MANUEL',
-            value: stats.total_manual,
-            color: 'tw-border-t-blue-500',
-            icon: '/anpr_peage_manager/static/src/img/manual.png',
-            bg: 'tw-bg-blue-100'
-          },
-          {
-            label: 'MOBILE',
-            value: stats.total_mobile,
-            color: 'tw-border-t-green-500',
-            icon: '/anpr_peage_manager/static/src/img/sim-card.png',
-            bg: 'tw-bg-green-100'
-          },
-          {
-            label: 'GLOBAL',
-            value: stats.total,
-            color: 'tw-border-t-purple-500',
-            icon: '/anpr_peage_manager/static/src/img/global.png',
-            bg: 'tw-bg-purple-100'
-          },
-          {
-            label: 'Transactions',
-            value: stats.transactions,
-            color: 'tw-border-t-yellow-500',
-            icon: '/anpr_peage_manager/static/src/img/transaction.png',
-            bg: 'tw-bg-white-100'
-          }
-        ]" t-as="card" t-key="card.label">
-          <div class="tw-bg-white tw-rounded-xl tw-shadow-sm tw-border-t-4 tw-p-6 tw-flex tw-items-center tw-justify-between" t-att-class="card.color">
+        <t
+          t-foreach="[
+            { label: 'MANUEL',    value: stats.total_manual,  color: 'tw-border-t-blue-500',  icon: '/anpr_peage_manager/static/src/img/manual.png',      bg: 'tw-bg-blue-100' },
+            { label: 'MOBILE',    value: stats.total_mobile,  color: 'tw-border-t-green-500', icon: '/anpr_peage_manager/static/src/img/sim-card.png',     bg: 'tw-bg-green-100' },
+            { label: 'GLOBAL',    value: stats.total,         color: 'tw-border-t-purple-500', icon: '/anpr_peage_manager/static/src/img/global.png',       bg: 'tw-bg-purple-100' },
+            { label: 'Transactions', value: stats.transactions, color: 'tw-border-t-yellow-500', icon: '/anpr_peage_manager/static/src/img/transaction.png', bg: 'tw-bg-white-100' }
+          ]"
+          t-as="card" t-key="card.label"
+        >
+          <div class="tw-bg-white tw-rounded-xl tw-shadow-sm tw-border-t-4 tw-p-6 tw-flex tw-items-center tw-justify-between"
+              t-att-class="card.color">
             <div class="tw-flex-1 tw-pr-4">
-              <div class="tw-text-base tw-font-medium tw-text-gray-900">
+              <!-- Libellé un peu plus petit -->
+              <div class="tw-text-sm tw-font-medium tw-text-gray-900">
                 <t t-esc="'Total ' + card.label" />
               </div>
-              <div class="tw-text-sm tw-text-gray-500">
+              <!-- Plage de dates encore plus discrète -->
+              <div class="tw-text-xs tw-text-gray-500">
                 <t t-esc="state.start" /> – <t t-esc="state.end" />
               </div>
-              <div class="tw-text-2xl tw-font-semibold tw-text-gray-800 tw-mt-2">
+              <!-- Valeur principale réduite à "tw-text-xl" au lieu de "2xl" -->
+              <div class="tw-text-xl tw-font-semibold tw-text-gray-800 tw-mt-2">
                 <t t-esc="card.label === 'Transactions' ? card.value : formatCurrency(card.value)" />
               </div>
             </div>
-            <div class="tw-w-12 tw-h-12 tw-rounded-full tw-border tw-border-gray-300 tw-bg-white tw-flex tw-items-center tw-justify-center tw-shadow-sm" t-att-class="card.bg">
+            <div class="tw-w-12 tw-h-12 tw-rounded-full tw-border tw-border-gray-300 tw-bg-white tw-flex tw-items-center tw-justify-center tw-shadow-sm"
+                t-att-class="card.bg">
               <img t-att-src="card.icon" class="tw-w-6 tw-h-6 sm:tw-w-7 sm:tw-h-7" />
             </div>
           </div>
         </t>
       </div>
+
 
       <!-- Bar chart -->
       <div class="tw-bg-white tw-rounded-xl tw-shadow tw-p-4">

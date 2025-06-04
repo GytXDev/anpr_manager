@@ -909,11 +909,6 @@ video {
   font-family: Inter;
 }
 
-.tw-text-2xl {
-  font-size: 1.5rem;
-  line-height: 2rem;
-}
-
 .tw-text-base {
   font-size: 1rem;
   line-height: 1.5rem;
@@ -927,6 +922,11 @@ video {
 .tw-text-xl {
   font-size: 1.25rem;
   line-height: 1.75rem;
+}
+
+.tw-text-xs {
+  font-size: 0.75rem;
+  line-height: 1rem;
 }
 
 .tw-font-medium {
