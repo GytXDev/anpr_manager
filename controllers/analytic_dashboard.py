@@ -47,22 +47,18 @@ class PeageAnalyticDashboardController(http.Controller):
             users = request.env['res.users'].sudo().search([('groups_id', 'in', caissier_group.id)])
             result = []
 
-            # On initialise deux tableaux de 12 zéros :
             monthly_manual = [0] * 12
             monthly_mobile = [0] * 12
 
             for user in users:
-                # Récupère tous les logs depuis le 1er janvier de cette année jusqu’à la date « end »
                 all_logs = request.env['anpr.log'].sudo().search([
                     ('user_id', '=', user.id),
                     ('paid_at', '>=', start.replace(month=1, day=1)),
                     ('paid_at', '<=', end),
                     ('payment_status', '=', 'success')
                 ])
-                # Ne garder que ceux dont paid_at est bien entre start et end
                 logs = [log for log in all_logs if start <= log.paid_at <= end]
 
-                # On remplit les deux tableaux mois par mois
                 for log in all_logs:
                     midx = log.paid_at.month - 1
                     if log.payment_method == 'manual':
@@ -87,7 +83,6 @@ class PeageAnalyticDashboardController(http.Controller):
             return {
                 'status': 'success',
                 'data': result,
-                # On renvoie maintenant les deux tableaux mensuels
                 'monthly_manual': monthly_manual,
                 'monthly_mobile': monthly_mobile,
                 'start': start.strftime('%d/%m/%Y'),
@@ -96,6 +91,63 @@ class PeageAnalyticDashboardController(http.Controller):
 
         except Exception as e:
             _logger.error("Erreur dans le backend analytique : %s", e)
+            return {'status': 'error', 'message': str(e)}
+
+    # Route pour la période personnalisée
+    @http.route('/anpr_peage/analytic_data_custom', type='json', auth='user')
+    def get_analytic_data_custom(self, start=None, end=None):
+        try:
+            start_dt = datetime.strptime(start, "%Y-%m-%d")
+            end_dt = datetime.strptime(end, "%Y-%m-%d") + timedelta(hours=23, minutes=59, seconds=59)
+
+            caissier_group = request.env.ref("anpr_peage_manager.group_peage_caissier")
+            users = request.env['res.users'].sudo().search([('groups_id', 'in', caissier_group.id)])
+            result = []
+
+            monthly_manual = [0] * 12
+            monthly_mobile = [0] * 12
+
+            for user in users:
+                all_logs = request.env['anpr.log'].sudo().search([
+                    ('user_id', '=', user.id),
+                    ('paid_at', '>=', start_dt.replace(month=1, day=1)),
+                    ('paid_at', '<=', end_dt),
+                    ('payment_status', '=', 'success')
+                ])
+                logs = [log for log in all_logs if start_dt <= log.paid_at <= end_dt]
+
+                for log in all_logs:
+                    midx = log.paid_at.month - 1
+                    if log.payment_method == 'manual':
+                        monthly_manual[midx] += log.amount or 0
+                    elif log.payment_method == 'mobile':
+                        monthly_mobile[midx] += log.amount or 0
+
+                manual_total = sum(log.amount for log in logs if log.payment_method == 'manual')
+                mobile_total = sum(log.amount for log in logs if log.payment_method == 'mobile')
+                transaction_count = len(logs)
+
+                result.append({
+                    'id': user.id,
+                    'name': user.name,
+                    'avatar': f"/web/image/res.users/{user.id}/image_128",
+                    'manual_total': manual_total,
+                    'mobile_total': mobile_total,
+                    'total': manual_total + mobile_total,
+                    'transactions': transaction_count
+                })
+
+            return {
+                'status': 'success',
+                'data': result,
+                'monthly_manual': monthly_manual,
+                'monthly_mobile': monthly_mobile,
+                'start': start_dt.strftime('%d/%m/%Y'),
+                'end': end_dt.strftime('%d/%m/%Y')
+            }
+
+        except Exception as e:
+            _logger.error("Erreur dans le backend analytique personnalisé : %s", e)
             return {'status': 'error', 'message': str(e)}
 
     @http.route('/anpr_peage/transactions/<int:user_id>', type='http', auth='user')

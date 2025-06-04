@@ -16,7 +16,10 @@ export class PeageDashboardAnalytic extends Component {
     static template = "anpr_peage_dashboard_analytic";
 
     setup() {
+        // État principal : sélection de période
         this.period = useState({ value: "monthly", start: "", end: "" });
+        // Flag : true dès qu’on a chargé au moins une fois la période "custom"
+        this.customLoaded = useState({ value: false });
 
         this.state = useState({
             loading: true,
@@ -39,9 +42,12 @@ export class PeageDashboardAnalytic extends Component {
     }
 
     async loadData() {
+        if (this.period.value !== "custom") {
+            this.customLoaded.value = false;
+        }
         this.state.loading = true;
-        let result;
 
+        let result;
         if (this.period.value === "custom") {
             if (!this.period.start || !this.period.end) {
                 console.warn("Les dates personnalisées sont manquantes.");
@@ -72,16 +78,17 @@ export class PeageDashboardAnalytic extends Component {
         this._renderCharts();
     }
 
-    loadCustomRange() {
-        this.loadData();
+    // On rend cette méthode async, pour qu’elle attende la fin de loadData()
+    async loadCustomRange() {
+        await this.loadData();
+        // Ce flag passe à true une fois que loadData() a terminé :
+        this.customLoaded.value = true;
     }
 
-    // Redirection vers la liste des transactions (méthode inchangée)
     showTransactions(userId) {
         const period = this.period.value;
         const start = this.period.start;
         const end = this.period.end;
-
         let url = `/anpr_peage/transactions/${userId}?period=${period}`;
         if (period === "custom" && start && end) {
             url += `&start=${start}&end=${end}`;
@@ -89,46 +96,33 @@ export class PeageDashboardAnalytic extends Component {
         window.location.href = url;
     }
 
-    // ********************
-    // 1) Export PDF
-    // ********************
     exportPDF(userId) {
         const period = this.period.value;
         const start = this.period.start;
         const end = this.period.end;
-
-        // Construit l'URL vers notre nouvelle route Python
         let url = `/anpr_peage/download_report_pdf?user_id=${userId}&period=${period}`;
         if (period === "custom" && start && end) {
             url += `&start=${start}&end=${end}`;
         }
-        // Lancer le téléchargement
         window.open(url, "_blank");
     }
 
-    // ********************
-    // 2) Export Excel (CSV)
-    // ********************
     exportExcel(userId) {
         const period = this.period.value;
         const start = this.period.start;
         const end = this.period.end;
-
-        // Construit l'URL vers notre nouvelle route Python pour Excel/CSV
         let url = `/anpr_peage/download_report_excel?user_id=${userId}&period=${period}`;
         if (period === "custom" && start && end) {
             url += `&start=${start}&end=${end}`;
         }
-        // Lancer le téléchargement
         window.open(url, "_blank");
     }
 
     _renderCharts() {
         if (typeof window.Chart !== "function") {
-            console.error("Chart.js n'est pas disponible !");
+            console.error("Chart.js n’est pas disponible !");
             return;
         }
-
         if (this.barInstance) this.barInstance.destroy();
         if (this.donutInstance) this.donutInstance.destroy();
 
@@ -175,9 +169,9 @@ export class PeageDashboardAnalytic extends Component {
                             padding: 8,
                             cornerRadius: 4,
                             callbacks: {
-                                label: (context) => {
-                                    const label = context.dataset.label;
-                                    const value = context.parsed.y;
+                                label: (ctx) => {
+                                    const label = ctx.dataset.label;
+                                    const value = ctx.parsed.y;
                                     return `${label} : ${new Intl.NumberFormat("fr-FR").format(value)} CFA`;
                                 }
                             }
@@ -188,7 +182,7 @@ export class PeageDashboardAnalytic extends Component {
                             beginAtZero: true,
                             grid: { color: "#E5E7EB", lineWidth: 1, drawBorder: false },
                             ticks: {
-                                callback: value => new Intl.NumberFormat("fr-FR").format(value) + " CFA",
+                                callback: (val) => new Intl.NumberFormat("fr-FR").format(val) + " CFA",
                                 color: "#6B7280",
                                 maxTicksLimit: 6
                             }
@@ -212,19 +206,20 @@ export class PeageDashboardAnalytic extends Component {
         if (donutCanvas) {
             const ctxDonut = donutCanvas.getContext("2d");
             const caissiers = this.state.stats;
-
             this.donutInstance = new window.Chart(ctxDonut, {
                 type: "doughnut",
                 data: {
-                    labels: caissiers.map(u => u.name),
-                    datasets: [{
-                        data: caissiers.map(u => u.total),
-                        backgroundColor: [
-                            "#3B82F6", "#10B981", "#F59E0B", "#EF4444",
-                            "#6366F1", "#8B5CF6", "#EC4899", "#F472B6"
-                        ],
-                        borderWidth: 2
-                    }]
+                    labels: caissiers.map((u) => u.name),
+                    datasets: [
+                        {
+                            data: caissiers.map((u) => u.total),
+                            backgroundColor: [
+                                "#3B82F6", "#10B981", "#F59E0B", "#EF4444",
+                                "#6366F1", "#8B5CF6", "#EC4899", "#F472B6"
+                            ],
+                            borderWidth: 2
+                        }
+                    ]
                 },
                 options: {
                     responsive: true,
@@ -232,16 +227,12 @@ export class PeageDashboardAnalytic extends Component {
                     plugins: {
                         legend: {
                             position: "bottom",
-                            labels: {
-                                color: "#374151",
-                                usePointStyle: true,
-                                boxWidth: 12
-                            }
+                            labels: { color: "#374151", usePointStyle: true, boxWidth: 12 }
                         },
                         tooltip: {
                             callbacks: {
-                                label: function (context) {
-                                    const i = context.dataIndex;
+                                label: function (ctx) {
+                                    const i = ctx.dataIndex;
                                     const nom = caissiers[i].name;
                                     const val = caissiers[i].total;
                                     return `${nom} : ${val.toLocaleString()} CFA`;
@@ -259,7 +250,10 @@ export class PeageDashboardAnalytic extends Component {
     }
 
     _computeGlobalStats() {
-        let total_manual = 0, total_mobile = 0, total = 0, transactions = 0;
+        let total_manual = 0,
+            total_mobile = 0,
+            total = 0,
+            transactions = 0;
         for (const u of this.state.stats) {
             total_manual += u.manual_total || 0;
             total_mobile += u.mobile_total || 0;

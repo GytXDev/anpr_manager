@@ -20,14 +20,27 @@
             <option value="custom">Période personnalisée</option>
           </select>
 
-          <div t-if="period.value === 'custom'" class="tw-flex tw-space-x-2 tw-mt-3">
-            <input type="date" class="tw-border tw-rounded tw-px-3 tw-py-1" t-model="period.start" />
-            <input type="date" class="tw-border tw-rounded tw-px-3 tw-py-1" t-model="period.end" />
-            <button class="tw-bg-blue-600 tw-text-white tw-px-3 tw-py-1 tw-rounded hover:tw-bg-blue-700"
-                    t-on-click="loadCustomRange">
-              Charger
-            </button>
-          </div>
+         <t t-if="period.value === 'custom'">
+          <t t-if="!customLoaded.value">
+            <div class="tw-flex tw-space-x-2 tw-mt-3">
+              <input type="date" class="tw-border tw-rounded tw-px-3 tw-py-1" t-model="period.start"/>
+              <input type="date" class="tw-border tw-rounded tw-px-3 tw-py-1" t-model="period.end"/>
+              <button class="tw-bg-blue-600 tw-text-white tw-px-3 tw-py-1 tw-rounded hover:tw-bg-blue-700"
+                      t-on-click="loadCustomRange">
+                Charger
+              </button>
+            </div>
+          </t>
+          <t t-else="">
+            <div class="tw-mt-3">
+              <button class="tw-bg-yellow-500 tw-text-white tw-px-3 tw-py-1 tw-rounded hover:tw-bg-yellow-600"
+                      t-on-click="() => { customLoaded.value = false }">
+                Modifier la période
+              </button>
+            </div>
+          </t>
+        </t>
+
 
           <!-- Icône flèche ▼ -->
           <div class="tw-pointer-events-none tw-absolute tw-inset-y-0 tw-right-2 tw-flex tw-items-center tw-text-gray-500">
