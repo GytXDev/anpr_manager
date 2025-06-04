@@ -16,17 +16,17 @@ import xlsxwriter
    
 _logger = logging.getLogger(__name__)
 
+
 def now_gabon():
     return datetime.now(timezone("Africa/Libreville")).replace(tzinfo=None)
 
+
 def compute_date_range(period, start_str=None, end_str=None):
     today = now_gabon().date()
-    # Si « custom » avec start_str/end_str passés au format "YYYY-MM-DD"
     if period == "custom" and start_str and end_str:
         start = datetime.strptime(start_str, "%Y-%m-%d")
-        end = datetime.strptime(end_str, "%Y-%m-%d") + timedelta(hours=23, minutes=59, seconds=59)
+        end   = datetime.strptime(end_str, "%Y-%m-%d") + timedelta(hours=23, minutes=59, seconds=59)
         return start, end
-    # Sinon, même logique que précédemment
     if period == "daily":
         start = datetime.combine(today, datetime.min.time())
         end   = datetime.combine(today, datetime.max.time())
@@ -58,6 +58,7 @@ def compute_date_range(period, start_str=None, end_str=None):
         raise ValueError("Période inconnue")
     return start, end
 
+
 def generate_report_pdf(period, start, end, user):
     buffer = BytesIO()
     doc = SimpleDocTemplate(
@@ -81,7 +82,7 @@ def generate_report_pdf(period, start, end, user):
     logs = request.env['anpr.log'].sudo().search([
         ('user_id', '=', user.id),
         ('paid_at', '>=', start),
-        ('paid_at', '<=', end),
+        ('paid_at', '<=',  end),
         ('payment_status', '=', 'success')
     ], order="paid_at asc")
 
@@ -125,25 +126,34 @@ def generate_report_pdf(period, start, end, user):
 
 def send_report_email(to_email, subject, body, pdf_data, filename="rapport.pdf"):
     env = request.env
-    smtp_user = env['ir.mail_server'].sudo().search([], limit=1).smtp_user or 'noreply@example.com'
 
+    # 1) On récupère l’utilisateur actuel pour lire son "email_report_from"
+    user = env.user.sudo()
+    smtp_from = user.email_report_from or False
+
+    # 2) Si l’utilisateur n’a pas renseigné d’email_report_from, on utilise le smtp_user
+    if not smtp_from:
+        mail_server = env['ir.mail_server'].sudo().search([], limit=1)
+        smtp_from = mail_server.smtp_user or 'noreply@example.com'
+
+    # 3) Création de l’attachement binaire
     attachment = env['ir.attachment'].sudo().create({
-        'name': filename,
-        'type': 'binary',
-        'datas': base64.b64encode(pdf_data).decode('utf-8'),
+        'name':     filename,
+        'type':     'binary',
+        'datas':    base64.b64encode(pdf_data).decode('utf-8'),
         'mimetype': 'application/pdf',
     })
 
+    # 4) Création du mail
     mail = env['mail.mail'].sudo().create({
-        'subject': subject,
-        'body_html': f"<p>{body}</p>",
-        'email_to': to_email,
-        'email_from': smtp_user,
+        'subject':       subject,
+        'body_html':     f"<p>{body}</p>",
+        'email_to':      to_email,    # <- on envoie **à** l’adresse user.email_report_from
+        'email_from':    smtp_from,   # <- on envoie **depuis** le SMTP user (ou le "from" configuré)
         'attachment_ids': [(6, 0, [attachment.id])],
     })
-
     mail.send()
-    _logger.info("✅ Rapport envoyé à %s", to_email)
+    _logger.info("✅ Rapport envoyé à %s depuis %s", to_email, smtp_from)
 
 
 class ANPRReportController(http.Controller):
@@ -151,36 +161,41 @@ class ANPRReportController(http.Controller):
     @http.route('/anpr_peage/send_report', type='json', auth='user')
     def send_report(self, period):
         try:
-            user = request.env.user
+            user  = request.env.user.sudo()
             start, end = compute_date_range(period)
-            pdf = generate_report_pdf(period, start, end, user)
+            pdf   = generate_report_pdf(period, start, end, user)
             subject = f"Rapport {period.capitalize()} - {user.name}"
-            body = f"Voici le rapport {period} de la caisse de {user.name}"
+            body    = f"Voici le rapport {period} de la caisse de {user.name}"
+
+            # On envoie le mail **à** l’adresse email_report_from (champ utilisateur)
+            recipient = user.email_report_from
+            if not recipient:
+                # si pas déclaré, on considère que c’est un échec
+                return {'status': 'error', 'message': 'Aucune adresse "Email d’envoi du rapport" n’est configurée.'}
 
             send_report_email(
-                to_email="mahelguindja@gmail.com",
-                subject=subject,
-                body=body,
-                pdf_data=pdf,
-                filename=f"rapport_{period}.pdf"
+                to_email  = recipient,
+                subject   = subject,
+                body      = body,
+                pdf_data  = pdf,
+                filename  = f"rapport_{period}.pdf"
             )
-
             return {'status': 'success', 'message': 'Rapport envoyé avec succès.'}
         except Exception as e:
             _logger.error("Erreur lors de l'envoi du rapport : %s", e)
             return {'status': 'error', 'message': str(e)}
-    
+
     @http.route(
         '/anpr_peage/download_report_pdf',
         type='http', auth='user', methods=['GET'], csrf=False
     )
     def download_report_pdf(self, user_id, period, start=None, end=None, **kwargs):
         try:
-            user = request.env['res.users'].sudo().browse(int(user_id))
+            user       = request.env['res.users'].sudo().browse(int(user_id))
             start_dt, end_dt = compute_date_range(period, start, end)
-            pdf_data = generate_report_pdf(period, start_dt, end_dt, user)
-            filename = f"rapport_caissier_{user_id}_{period}.pdf"
-            headers = [
+            pdf_data   = generate_report_pdf(period, start_dt, end_dt, user)
+            filename   = f"rapport_caissier_{user_id}_{period}.pdf"
+            headers    = [
                 ('Content-Type', 'application/pdf'),
                 ('Content-Disposition', f'attachment; filename="{filename}"')
             ]
@@ -194,14 +209,10 @@ class ANPRReportController(http.Controller):
         type='http', auth='user', methods=['GET'], csrf=False
     )
     def download_report_excel(self, user_id, period, start=None, end=None, **kwargs):
-        """
-        Génère un fichier XLSX en mémoire grâce à xlsxwriter, puis le renvoie.
-        """
         try:
-            user = request.env['res.users'].sudo().browse(int(user_id))
+            user       = request.env['res.users'].sudo().browse(int(user_id))
             start_dt, end_dt = compute_date_range(period, start, end)
 
-            # 1) Récupérer les logs validés pour ce caissier et cette période
             logs = request.env['anpr.log'].sudo().search([
                 ('user_id', '=', user.id),
                 ('paid_at', '>=', start_dt),
@@ -209,20 +220,15 @@ class ANPRReportController(http.Controller):
                 ('payment_status', '=', 'success')
             ], order="paid_at asc")
 
-            # 2) Créer le classeur XLSX en mémoire
-            output = BytesIO()
+            output   = BytesIO()
             workbook = xlsxwriter.Workbook(output, {'in_memory': True})
-            sheet = workbook.add_worksheet("Rapport")
+            sheet    = workbook.add_worksheet("Rapport")
+            bold     = workbook.add_format({'bold': True})
 
-            # 2.1) Format pour l'en-tête (gras)
-            bold = workbook.add_format({'bold': True})
-
-            # 2.2) Écrire l'en-tête de colonnes
             headers = ["Date", "Heure", "Plaque", "Montant (CFA)", "Methode"]
             for col, header in enumerate(headers):
                 sheet.write(0, col, header, bold)
 
-            # 3) Remplir chaque ligne avec les données
             row = 1
             for log in logs:
                 dt     = log.paid_at.strftime("%d/%m/%Y")
@@ -230,27 +236,24 @@ class ANPRReportController(http.Controller):
                 plate  = log.plate or "-"
                 amount = log.amount or 0
                 method = (log.payment_method or "").upper()
-
                 sheet.write(row, 0, dt)
                 sheet.write(row, 1, hr)
                 sheet.write(row, 2, plate)
-                sheet.write_number(row, 3, amount)  # écriture numérique
+                sheet.write_number(row, 3, amount)
                 sheet.write(row, 4, method)
                 row += 1
 
-            # 4) Fermer le fichier et récupérer le binaire
             workbook.close()
             xlsx_data = output.getvalue()
             output.close()
 
-            # 5) Préparer la réponse HTTP
             filename = f"rapport_caissier_{user_id}_{period}.xlsx"
             headers = [
-                ('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+                ('Content-Type',
+                 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
                 ('Content-Disposition', f'attachment; filename="{filename}"')
             ]
             return request.make_response(xlsx_data, headers=headers)
-
         except Exception as e:
             _logger.error("Erreur export XLSX : %s", e)
             return request.not_found()

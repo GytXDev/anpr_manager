@@ -9,41 +9,90 @@
         <app string="Paramètres ANPR &amp; Paiement" name="anpr_peage_manager">
           <block title="Configuration Artemis, Flask &amp; Paiement">
 
-            <!-- ARTEMIS -->
-            <setting string="Clé App Artemis" help="Clé publique fournie par le serveur Artemis">
+            <!-- ─── 1. ARTEMIS ─── -->
+            <setting string="Clé App Artemis"
+                     help="Clé publique fournie par le serveur Artemis">
               <field name="artemis_app_key"/>
             </setting>
-            <setting string="Secret App Artemis" help="Clé secrète fournie par le serveur Artemis">
+            <setting string="Secret App Artemis"
+                     help="Clé secrète fournie par le serveur Artemis">
               <field name="artemis_app_secret"/>
             </setting>
-            <setting string="URL Artemis" help="Adresse complète du serveur Artemis (ex: https://192.168.1.50)">
+            <setting string="URL Artemis"
+                     help="Adresse du serveur Artemis (ex : https://192.168.1.50)">
               <field name="artemis_url"/>
             </setting>
-            <setting string="Token" help="Token utilisé pour sécuriser les événements entrants">
+            <setting string="Token Artemis"
+                     help="Token pour sécuriser les événements">
               <field name="artemis_token"/>
             </setting>
-            <setting string="Liste caméras ANPR" help="IndexCode des caméras ANPR à écouter (ex: 51,44)">
+            <setting string="Liste caméras ANPR"
+                     help="Codes des caméras ANPR (ex : 51,44)">
               <field name="artemis_event_src_codes"/>
             </setting>
 
-            <!-- FLASK -->
-            <setting string="URL Flask (eventDest)" help="URL de votre serveur Flask qui reçoit les événements ANPR">
+            <!-- ─── 2. FLASK ─── -->
+            <setting string="URL Flask (eventDest)"
+                     help="URL du serveur Flask qui reçoit les événements ANPR">
               <field name="artemis_event_dest_url"/>
             </setting>
-            <setting string="URL du Serveur Flask" help="Lien vers le serveur Flask pour consulter la dernière plaque détectée">
+            <setting string="URL Serveur Flask"
+                     help="Lien vers le serveur Flask (GET/DELETE) pour la plaque">
               <field name="flask_url"/>
             </setting>
 
-            <!-- PAIEMENT & IMPRESSION -->
-            <setting string="URL API Paiement Mobile Money" help="Lien vers le script de paiement Mobile Money (ex: https://gytx.dev/api/airtelmoney-web.php)">
+            <!-- ─── 3. PAIEMENT & VFD ─── -->
+            <setting string="URL API Paiement Mobile Money"
+                     help="Lien vers le script de paiement Mobile Money (ex : https://...)">
               <field name="payment_api_url"/>
             </setting>
-            <setting string="URL Serveur VFD" help="Adresse du serveur pour afficher les montants sur l'afficheur VFD (ex: https://devotech.archisec-it.com/vfd)">
+            <setting string="URL Serveur VFD"
+                     help="Adresse du serveur pour afficher le montant sur l'afficheur VFD (ex : https://devotech.archisec-it.com/vfd)">
               <field name="vfd_url"/>
             </setting>
-            <setting string= "URL Serveur de commande d'impression" help="Adresse du serveur en ligne qui envoie les commandes d'impressions (ex https://devotech.archisec-it.com/print)">
-              <field name="print_url"/>
+
+            <!-- ─── 4. IMPRESSION ESC/POS ─── -->
+            <setting string="IP de l'imprimante ESC/POS"
+                     help="Adresse IP de l'imprimante réseau (ex : 192.168.1.114)">
+              <field name="printer_ip"/>
             </setting>
+            <setting string="Port de l'imprimante ESC/POS"
+                     help="Port TCP de l'imprimante (généralement 9100)">
+              <field name="printer_port"/>
+            </setting>
+
+            <!-- ─── 5. TVA & TARIFS HT ─── -->
+            <setting string="Taux de TVA (%)"
+                     help="Pourcentage de TVA à appliquer sur les tarifs">
+              <field name="tva_rate"/>
+            </setting>
+            <setting string="Tarif « Autre » (HT, CFA)"
+                     help="Tarif hors taxe pour la catégorie « Autre »">
+              <field name="price_autre"/>
+            </setting>
+            <setting string="Tarif « Voiture particulière » (HT, CFA)"
+                     help="Tarif hors taxe pour la catégorie « Voiture particulière »">
+              <field name="price_car"/>
+            </setting>
+            <setting string="Tarif « Camion » (HT, CFA)"
+                     help="Tarif hors taxe pour la catégorie « Camion »">
+              <field name="price_camion"/>
+            </setting>
+            <setting string="Tarif « 4×4 » (HT, CFA)"
+                     help="Tarif hors taxe pour la catégorie « 4×4 »">
+              <field name="price_4x4"/>
+            </setting>
+            <setting string="Tarif « Bus » (HT, CFA)"
+                     help="Tarif hors taxe pour la catégorie « Bus »">
+              <field name="price_bus"/>
+            </setting>
+
+            <!-- ─── 6. EMAIL D'ENVOI DU RAPPORT ─── -->
+            <setting string="Email d'envoi du rapport"
+                     help="Adresse email à utiliser comme expéditeur pour l’envoi des rapports">
+              <field name="email_report_from"/>
+            </setting>
+
           </block>
         </app>
       </xpath>

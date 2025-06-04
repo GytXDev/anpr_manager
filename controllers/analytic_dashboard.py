@@ -4,6 +4,7 @@ from odoo import http
 from odoo.http import request
 from datetime import datetime, timedelta
 from pytz import timezone
+from .pay import generate_receipt_content
 import logging
 
 _logger = logging.getLogger(__name__)

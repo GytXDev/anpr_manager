@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
   <t t-name="anpr_peage_dashboard_analytic" owl="1">
-    <div class="tw-h-full tw-overflow-y-auto tw-bg-[#f1f5f9] tw-px-6 tw-py-8 tw-space-y-10 tw-font-[Inter]">
+    <div class="peage-dashboard tw-h-full tw-overflow-y-auto tw-bg-[#f1f5f9] tw-px-6 tw-py-8 tw-space-y-10 tw-font-[Inter]">
 
       <!-- Sélecteur de période -->
       <div class="tw-flex tw-justify-end">
@@ -20,27 +20,27 @@
             <option value="custom">Période personnalisée</option>
           </select>
 
-         <t t-if="period.value === 'custom'">
-          <t t-if="!customLoaded.value">
-            <div class="tw-flex tw-space-x-2 tw-mt-3">
-              <input type="date" class="tw-border tw-rounded tw-px-3 tw-py-1" t-model="period.start"/>
-              <input type="date" class="tw-border tw-rounded tw-px-3 tw-py-1" t-model="period.end"/>
-              <button class="tw-bg-blue-600 tw-text-white tw-px-3 tw-py-1 tw-rounded hover:tw-bg-blue-700"
-                      t-on-click="loadCustomRange">
-                Charger
-              </button>
-            </div>
+          <!-- Bloc “personnalisé” – reste dans le même conteneur -->
+          <t t-if="period.value === 'custom'">
+            <t t-if="!customLoaded.value">
+              <div class="tw-flex tw-space-x-2 tw-mt-3">
+                <input type="date" class="tw-border tw-rounded tw-px-3 tw-py-1" t-model="period.start"/>
+                <input type="date" class="tw-border tw-rounded tw-px-3 tw-py-1" t-model="period.end"/>
+                <button class="tw-bg-blue-600 tw-text-white tw-px-3 tw-py-1 tw-rounded hover:tw-bg-blue-700"
+                        t-on-click="loadCustomRange">
+                  Charger
+                </button>
+              </div>
+            </t>
+            <t t-else="">
+              <div class="tw-mt-3">
+                <button class="tw-bg-yellow-500 tw-text-white tw-px-3 tw-py-1 tw-rounded hover:tw-bg-yellow-600"
+                        t-on-click="() => { customLoaded.value = false }">
+                  Modifier la période
+                </button>
+              </div>
+            </t>
           </t>
-          <t t-else="">
-            <div class="tw-mt-3">
-              <button class="tw-bg-yellow-500 tw-text-white tw-px-3 tw-py-1 tw-rounded hover:tw-bg-yellow-600"
-                      t-on-click="() => { customLoaded.value = false }">
-                Modifier la période
-              </button>
-            </div>
-          </t>
-        </t>
-
 
           <!-- Icône flèche ▼ -->
           <div class="tw-pointer-events-none tw-absolute tw-inset-y-0 tw-right-2 tw-flex tw-items-center tw-text-gray-500">
@@ -51,44 +51,48 @@
         </div>
       </div>
 
-      <!-- Cartes Statistiques -->
+      <!-- Cartes Statistiques, version border + texte un peu plus grand -->
       <div class="tw-grid tw-grid-cols-1 sm:tw-grid-cols-2 lg:tw-grid-cols-4 tw-gap-6">
         <t t-set="stats" t-value="globalStats()" />
         <t
           t-foreach="[
-            { label: 'MANUEL',    value: stats.total_manual,  color: 'tw-border-t-blue-500',  icon: '/anpr_peage_manager/static/src/img/manual.png',      bg: 'tw-bg-blue-100' },
-            { label: 'MOBILE',    value: stats.total_mobile,  color: 'tw-border-t-green-500', icon: '/anpr_peage_manager/static/src/img/sim-card.png',     bg: 'tw-bg-green-100' },
-            { label: 'GLOBAL',    value: stats.total,         color: 'tw-border-t-purple-500', icon: '/anpr_peage_manager/static/src/img/global.png',       bg: 'tw-bg-purple-100' },
+            { label: 'MANUEL',    value: stats.total_manual,    color: 'tw-border-t-blue-500',  icon: '/anpr_peage_manager/static/src/img/manual.png',      bg: 'tw-bg-blue-100' },
+            { label: 'MOBILE',    value: stats.total_mobile,    color: 'tw-border-t-green-500', icon: '/anpr_peage_manager/static/src/img/sim-card.png',     bg: 'tw-bg-green-100' },
+            { label: 'GLOBAL',    value: stats.total,           color: 'tw-border-t-purple-500', icon: '/anpr_peage_manager/static/src/img/global.png',       bg: 'tw-bg-purple-100' },
             { label: 'Transactions', value: stats.transactions, color: 'tw-border-t-yellow-500', icon: '/anpr_peage_manager/static/src/img/transaction.png', bg: 'tw-bg-white-100' }
           ]"
-          t-as="card" t-key="card.label"
+          t-as="card"
+          t-key="card.label"
         >
-          <div class="tw-bg-white tw-rounded-xl tw-shadow-sm tw-border-t-4 tw-p-6 tw-flex tw-items-center tw-justify-between"
-              t-att-class="card.color">
+          <div
+            class="tw-bg-white tw-rounded-xl tw-shadow-sm tw-p-6 tw-flex tw-items-center tw-justify-between tw-border-t-4"
+            t-att-class="card.color"
+          >
             <div class="tw-flex-1 tw-pr-4">
-              <!-- Libellé un peu plus petit -->
-              <div class="tw-text-sm tw-font-medium tw-text-gray-900">
-                <t t-esc="'Total ' + card.label" />
+              <!-- Entête un peu plus gros : tw-text-base au lieu de tw-text-sm -->
+              <div class="tw-text-base tw-font-medium tw-text-gray-900">
+                <t t-esc="'Total ' + card.label"/>
               </div>
-              <!-- Plage de dates encore plus discrète -->
-              <div class="tw-text-xs tw-text-gray-500">
-                <t t-esc="state.start" /> – <t t-esc="state.end" />
+              <!-- Dates un petit peu plus lisibles : tw-text-sm au lieu de tw-text-xs -->
+              <div class="tw-text-sm tw-text-gray-500">
+                <t t-esc="state.start"/> – <t t-esc="state.end"/>
               </div>
-              <!-- Valeur principale réduite à "tw-text-xl" au lieu de "2xl" -->
+              <!-- Valeur agrandie : tw-text-2xl -->
               <div class="tw-text-xl tw-font-semibold tw-text-gray-800 tw-mt-2">
-                <t t-esc="card.label === 'Transactions' ? card.value : formatCurrency(card.value)" />
+                <t t-esc="card.label === 'Transactions' ? card.value : formatCurrency(card.value)"/>
               </div>
             </div>
-            <div class="tw-w-12 tw-h-12 tw-rounded-full tw-border tw-border-gray-300 tw-bg-white tw-flex tw-items-center tw-justify-center tw-shadow-sm"
+            <!-- Cercle plus petit et icône aussi plus petit -->
+            <div class="tw-w-10 tw-h-10 tw-rounded-full tw-border tw-border-gray-300 tw-bg-white tw-flex tw-items-center tw-justify-center tw-shadow-sm"
                 t-att-class="card.bg">
-              <img t-att-src="card.icon" class="tw-w-6 tw-h-6 sm:tw-w-7 sm:tw-h-7" />
+              <img t-att-src="card.icon" class="tw-w-5 tw-h-5 sm:tw-w-6 sm:tw-h-6"/>
             </div>
           </div>
         </t>
       </div>
 
 
-      <!-- Bar chart -->
+      <!-- Reste du template… (graph, liste, etc.) -->
       <div class="tw-bg-white tw-rounded-xl tw-shadow tw-p-4">
         <div class="tw-flex tw-items-center tw-justify-between tw-mb-4">
           <div class="tw-text-base tw-font-medium tw-text-gray-900">
@@ -100,28 +104,16 @@
         </div>
       </div>
 
-
-      <!-- Période affichée -->
       <div class="tw-text-center tw-text-sm tw-text-gray-500"
            t-if="!state.loading &amp;&amp; state.start &amp;&amp; state.end">
         Données du <t t-esc="state.start" /> au <t t-esc="state.end" />
       </div>
 
-      <!-- Caissiers + Donut -->
+      <!-- … et ainsi de suite -->
       <div class="tw-grid tw-grid-cols-1 lg:tw-grid-cols-3 tw-gap-6">
-
-        <!-- Conteneur unique pour tous les caissiers -->
         <div class="lg:tw-col-span-2 tw-bg-white tw-rounded-xl tw-shadow tw-overflow-hidden">
           <t t-foreach="state.stats" t-as="user" t-key="user.id">
-            <div
-              class="
-                tw-flex tw-items-center tw-justify-between
-                tw-p-4
-                tw-border-b tw-border-gray-200
-                last:tw-border-0
-                hover:tw-bg-gray-50 tw-transition-colors
-              ">
-              <!-- Avatar + Nom + Total -->
+            <div class="tw-flex tw-items-center tw-justify-between tw-p-4 tw-border-b tw-border-gray-200 last:tw-border-0 hover:tw-bg-gray-50 tw-transition-colors">
               <div class="tw-flex tw-items-center tw-space-x-3">
                 <div class="tw-w-10 tw-h-10 tw-rounded-full tw-bg-blue-100 tw-flex tw-items-center tw-justify-center">
                   <img t-att-src="user.avatar" class="tw-w-8 tw-h-8 tw-rounded-full tw-object-cover" />
@@ -131,43 +123,35 @@
                   <p class="tw-text-sm tw-text-gray-600 tw-mt-0.5" t-esc="formatCurrency(user.total)" />
                 </div>
               </div>
-
-              <!-- Icônes : Œil (voir), PDF (export PDF) et Excel (export CSV/Excel) -->
               <div class="tw-flex tw-space-x-4">
-                <!-- 1) Œil → redirige vers la liste des transactions -->
                 <a
                   href="#"
                   class="tw-text-indigo-600 hover:tw-text-indigo-800"
                   t-on-click.prevent="() => this.showTransactions(user.id)"
                   t-att-title="'Voir les transactions de ' + user.name"
                 >
-                  <i class="fa fa-eye tw-text-xl"></i>
+                  <i class="fa fa-eye tw-text-lg"></i>
                 </a>
-
-                <!-- 2) PDF → télécharge le rapport PDF -->
                 <a
                   href="#"
                   class="tw-text-red-600 hover:tw-text-red-800"
                   t-on-click.prevent="() => this.exportPDF(user.id)"
                   t-att-title="'Exporter en PDF pour ' + user.name"
                 >
-                  <i class="fa fa-file-pdf-o tw-text-xl"></i>
+                  <i class="fa fa-file-pdf-o tw-text-lg"></i>
                 </a>
-
-                <!-- 3) Excel → télécharge le rapport Excel/CSV -->
                 <a
                   href="#"
                   class="tw-text-green-600 hover:tw-text-green-800"
                   t-on-click.prevent="() => this.exportExcel(user.id)"
                   t-att-title="'Exporter en Excel pour ' + user.name"
                 >
-                  <i class="fa fa-file-excel-o tw-text-xl"></i>
+                  <i class="fa fa-file-excel-o tw-text-lg"></i>
                 </a>
               </div>
             </div>
           </t>
         </div>
-
         <div class="tw-bg-white tw-rounded-xl tw-shadow tw-p-6">
           <div class="tw-relative tw-h-[260px]">
             <canvas id="peageDonutChart" class="tw-w-full tw-h-full"></canvas>

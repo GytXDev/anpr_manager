@@ -31,7 +31,6 @@
             'anpr_peage_manager/static/src/xml/peage_dashboard_analytic.xml',
             'anpr_peage_manager/static/src/css/dashboard.css',
             'anpr_peage_manager/static/src/css/cash_drawer_screen.css',
-            'anpr_peage_manager/static/src/css/peage_dashboard_analytic.css',
             "anpr_peage_manager/static/src/css/output.css",
         ],
     },

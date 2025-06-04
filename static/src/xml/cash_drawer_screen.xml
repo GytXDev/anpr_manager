@@ -4,7 +4,12 @@
     <div class="cash-drawer-screen">
       <!-- Avatar -->
       <div class="avatar-ring">
-        <img t-att-src="state.userAvatar" class="avatar-img"/>
+        <img
+          t-att-src="state.userAvatar || 'https://www.gravatar.com/avatar?d=mp'"
+          class="avatar-img"
+          alt="Avatar"
+        />
+
       </div>
 
       <!-- Nom

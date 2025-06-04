@@ -120,20 +120,27 @@ class AnprPeageController(http.Controller):
         move.action_post()
         return move
 
-    def print_receipt_to_printer(self, content):
-        user = request.env.user
-        ip_address = user.printer_ip
-        port = int(user.printer_port or 9100)
-
+    def print_receipt_to_printer(self, ip_address, port, plate, vehicle_type, numero, amount, status_message, ticket_number):
+        
         try:
+            # 1) Générer le buffer ESC/POS
+            receipt_bytes = generate_receipt_content(
+                plate=plate,
+                vehicle_type=vehicle_type,
+                numero=numero,
+                amount=amount,
+                status_message=status_message,
+                ticket_number=ticket_number,
+                open_drawer=True
+            )
             s = socket.socket()
             s.settimeout(10)
             s.connect((ip_address, port))
-            s.sendall(content)
+            s.sendall(receipt_bytes)
             s.close()
-            return True
+            return True, None
         except Exception as e:
-            return str(e)
+            return False, str(e)
 
 
     def scroll_vfd(self, raw_message, permanent=False):
@@ -233,140 +240,141 @@ class AnprPeageController(http.Controller):
 
     @http.route('/anpr_peage/pay_manuely', type='json', auth='user')
     def process_manual_payment(self, plate, vehicle_type, amount):
+        """
+        Route JSON pour paiement manuel :
+        - Crée le log, la pièce comptable, puis imprime en local sur l’imprimante IP/port stockée sur l’utilisateur.
+        """
         user = request.env.user
-        print_url = user.print_url
         try:
-            # Validation des entrées
             if not all([plate, vehicle_type, amount]):
-                return {
-                    'payment_status': "failed",
-                    'message': "Tous les champs sont requis."
-                }
+                return { 'payment_status': "failed", 'message': "Tous les champs sont requis." }
 
             valid_types = {
-                'Car': 'car',
-                '4x4': '4x4',
-                'Bus': 'bus',
-                'Camion': 'camion',
-                'Autres': 'autres',
+                'Car'    : 'car',
+                '4x4'    : '4x4',
+                'Bus'    : 'bus',
+                'Camion' : 'camion',
+                'Autres' : 'autres',
             }
-            internal_type = valid_types.get(vehicle_type, 'autres')
-            payment_method = "manual"
+            internal_type      = valid_types.get(vehicle_type, 'autres')
+            payment_method     = "manual"
             transaction_message = "Paiement manuel effectué"
-
-            ticket_number = request.env['ir.sequence'].sudo().next_by_code('anpr.ticket.sequence')
+            ticket_number      = request.env['ir.sequence'].sudo().next_by_code('anpr.ticket.sequence')
 
             log_entry = request.env['anpr.log'].sudo().create({
-                'user_id': request.env.user.id,
-                'plate': plate,
-                'vehicle_type': internal_type,
-                'amount': amount,
-                'transaction_message': transaction_message,
-                'payment_status': "success",
-                'payment_method': payment_method,
-                'paid_at': now_gabon()
+                'user_id'             : user.id,
+                'plate'               : plate,
+                'vehicle_type'        : internal_type,
+                'amount'              : amount,
+                'transaction_message' : transaction_message,
+                'payment_status'      : "success",
+                'payment_method'      : payment_method,
+                'paid_at'             : now_gabon(),
             })
 
-            self._create_account_move(amount, payment_method, plate, request.env.user.name)
+            self._create_account_move(amount, payment_method, plate, user.name)
 
-            print_data = {
-                "content": f"Plaque: {plate}, Type: {internal_type}, Montant: {amount}, Date: {now_gabon()}, Paiement: {payment_method}, Statut: {transaction_message}, Ticket: {ticket_number}"
-            }
-            
-            response = requests.post(print_url, json=print_data)
-            response.raise_for_status()  # Lève une exception pour les codes d'erreur HTTP
+            ip_addr = user.printer_ip
+            port    = int(user.printer_port or 9100)
+            success, err = self.print_receipt_to_printer(
+                ip_address     = ip_addr,
+                port           = port,
+                plate          = plate,
+                vehicle_type   = internal_type,
+                numero         = "MANUEL",
+                amount         = amount,
+                status_message = transaction_message,
+                ticket_number  = ticket_number
+            )
+            if not success:
+                _logger.warning("Échec impression manuel (%s:%s) : %s", ip_addr, port, err)
 
             return {
                 'payment_status': "success",
                 'message': f"Paiement manuel enregistré avec le ticket {ticket_number}"
             }
 
-        except requests.exceptions.RequestException as e:
-            _logger.error("Erreur lors de l'envoi des données d'impression: %s", e)
-            return {
-                'payment_status': "failed",
-                'message': "Erreur de communication avec le serveur d'impression."
-            }
         except Exception as e:
             _logger.exception("Erreur lors du traitement du paiement manuel.")
-            return {
-                'payment_status': "failed",
-                'message': str(e)
-            }
+            return { 'payment_status': "failed", 'message': str(e) }
+
 
     @http.route('/anpr_peage/pay', type='json', auth='public', csrf=False)
     def process_payment(self, plate, vehicle_type, numero, amount):
-        print("✅ Route /anpr_peage/pay appelée avec :", plate, vehicle_type, numero, amount)
+        """
+        Route JSON pour paiement Mobile Money :
+        - Appelle l’API M-Money externe, génère log + écriture comptable,
+          puis imprime directement sur l’imprimante du caissier.
+        """
         user = request.env.user
-        payment_api_url = user.payment_api_url
-        print_url = user.print_url
-
         try:
             if not all([plate, vehicle_type, numero, amount]):
-                return {
-                    'status': 'error',
-                    'message': "Tous les champs sont requis."
-                }
+                return { 'status': 'error', 'message': "Tous les champs sont requis." }
 
+            # 1) Préparer type interne
             valid_types = {
-                'Car': 'car',
-                '4x4': '4x4',
-                'Bus': 'bus',
-                'Camion': 'camion',
-                'Autres': 'autres',
+                'Car'    : 'car',
+                '4x4'    : '4x4',
+                'Bus'    : 'bus',
+                'Camion' : 'camion',
+                'Autres' : 'autres',
             }
             internal_type = valid_types.get(vehicle_type, 'autres')
 
+            # 2) Appel à l’API Mobile Money externe
             payload = {'numero': numero, 'amount': amount}
             headers = {'Content-Type': 'application/x-www-form-urlencoded'}
-
-            response = requests.post(payment_api_url, data=payload, headers=headers, timeout=30)
-            response.raise_for_status()  # Vérifie les erreurs de réponse
-
-            result = response.json()
+            resp = requests.post(user.payment_api_url, data=payload, headers=headers, timeout=30)
+            resp.raise_for_status()
+            result = resp.json()
             status_message = result.get("status_message", "Aucune réponse").lower()
             payment_status = 'success' if "successfully processed" in status_message else 'failed'
 
             ticket_number = request.env['ir.sequence'].sudo().next_by_code('anpr.ticket.sequence')
 
             if payment_status == 'success':
+                # 3.1) Créer le log
                 request.env['anpr.log'].sudo().create({
-                    'user_id': request.env.user.id,
-                    'plate': plate,
-                    'vehicle_type': internal_type,
-                    'amount': amount,
-                    'transaction_message': status_message,
-                    'payment_status': payment_status,
-                    'payment_method': "mobile",
-                    'paid_at': now_gabon()
+                    'user_id'             : user.id,
+                    'plate'               : plate,
+                    'vehicle_type'        : internal_type,
+                    'amount'              : amount,
+                    'transaction_message' : status_message,
+                    'payment_status'      : payment_status,
+                    'payment_method'      : "mobile",
+                    'paid_at'             : now_gabon(),
                 })
-                self._create_account_move(amount, "mobile", plate, request.env.user.name)
+                # 3.2) Créer l’écriture comptable
+                self._create_account_move(amount, "mobile", plate, user.name)
 
-                print_data = {
-                    "content": f"Plaque: {plate}, Type: {internal_type}, Montant: {amount}, Date: {now_gabon()}, Numéro: {numero}, Paiement: mobile, Statut: {status_message}, Ticket: {ticket_number}"
-                }
-                
-                print_response = requests.post(print_url, json=print_data)
-                print_response.raise_for_status()  # Vérifie les erreurs lors de l'envoi
+                # 3.3) Imprimer le reçu
+                ip_addr = user.printer_ip
+                port    = int(user.printer_port or 9100)
+                success, err = self.print_receipt_to_printer(
+                    ip_address     = ip_addr,
+                    port           = port,
+                    plate          = plate,
+                    vehicle_type   = internal_type,
+                    numero         = numero,
+                    amount         = amount,
+                    status_message = status_message,
+                    ticket_number  = ticket_number
+                )
+                if not success:
+                    _logger.warning("Échec impression mobile (%s:%s) : %s", ip_addr, port, err)
 
             return {
-                'status': payment_status,
-                'message': result.get("status_message", "Réponse inconnue"),
+                'status'        : payment_status,
+                'message'       : result.get("status_message", "Réponse inconnue"),
                 'payment_status': payment_status
             }
 
         except requests.exceptions.RequestException as req_err:
             _logger.error(f"Erreur de requête : {req_err}")
-            return {
-                'status': 'error',
-                'message': "Erreur de communication avec le serveur de paiement."
-            }
+            return { 'status': 'error', 'message': "Erreur de communication avec le serveur de paiement." }
         except Exception as e:
             _logger.exception("Erreur lors du traitement du paiement.")
-            return {
-                'status': 'error',
-                'message': f"Erreur API : {e}"
-            }
+            return { 'status': 'error', 'message': f"Erreur API : {e}" }
 
     # Résumé de tout les paiements  
     @http.route('/anpr_peage/summary_user', type='json', auth='user')
@@ -402,15 +410,32 @@ class AnprPeageController(http.Controller):
         }
 
 
-    @http.route('/anpr_peage/get_current_user', type='json', auth='user', csrf=False)
+    @http.route('/anpr_peage/get_current_user', type='json', auth='user')
     def get_current_user(self):
-        try:
-            info = request.env['anpr.log'].sudo().get_current_user_info()
-            return info
-        except Exception as e:
-            # pour debug, renvoyer l’erreur
-            return {'error': True, 'message': str(e)}
-
+        user = request.env.user.sudo()
+        return {
+            'id':           user.id,
+            'name':         user.name,
+            'avatar_url': f"/web/image/res.users/{user.id}/image_128",
+            'flask_url':    user.flask_url,
+            'payment_api_url': user.payment_api_url,
+            'vfd_url':      user.vfd_url,
+            'artemis_app_key':    user.artemis_app_key,
+            'artemis_app_secret': user.artemis_app_secret,
+            'artemis_url':        user.artemis_url,
+            'artemis_token':      user.artemis_token,
+            'artemis_event_dest_url': user.artemis_event_dest_url,
+            'artemis_event_src_codes': user.artemis_event_src_codes,
+            'printer_ip':   user.printer_ip,
+            'printer_port': user.printer_port,
+            # ** LES CHAMPS TVA + TARIFS HT ** 
+            'tva_rate':     user.tva_rate,
+            'price_autre':  user.price_autre,
+            'price_car':    user.price_car,
+            'price_camion': user.price_camion,
+            'price_4x4':    user.price_4x4,
+            'price_bus':    user.price_bus,
+        }
     
     # Status de la souscription ANPR
     @http.route('/anpr_peage/hikcentral_status', type='json', auth='user')

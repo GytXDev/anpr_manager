@@ -9,7 +9,7 @@
           <img src="/anpr_peage_manager/static/src/img/logo_ogooue.png" class="header-logo me-2"/>
           <span class="dashboard-title">OTECHPEAGE</span>
         </div>
-  
+
         <div class="d-flex align-items-center gap-3">
           <div class="text-muted small" t-esc="state.date"/>
           <button class="btn btn-outline-danger btn-sm" t-on-click="closeCashDrawer">
@@ -19,44 +19,46 @@
       </div>
 
       <!-- Contenu principal -->
-     <div class="otech-dashboard-main">
+      <div class="otech-dashboard-main">
 
         <!-- Liste des transactions -->
         <div class="otech-transaction-scroll-wrapper">
-            <div class="otech-transaction-scroll">
+          <div class="otech-transaction-scroll">
 
-              <div class="d-flex fw-bold border-bottom pb-1 mb-2 small text-uppercase">
-                <div class="flex-fill">Opérateur</div>
-                <div class="flex-fill">Plaque</div>
-                <div class="flex-fill">Date</div>
-                <div class="flex-fill">Heure</div>
-                <div class="flex-fill">Montant</div>
-                <div class="flex-fill text-end">Paiement</div>
-              </div>
-
-              <div class="transaction-list">
-                <t t-foreach="state.paginated" t-as="tx" t-key="tx.id">
-                  <div class="d-flex transaction-line">
-                    <div class="flex-fill" t-esc="tx.operator"/>
-                    <div class="flex-fill" t-esc="tx.plate"/>
-                    <div class="flex-fill" t-esc="tx.date"/>
-                    <div class="flex-fill" t-esc="tx.time"/>
-                    <div class="flex-fill"><t t-esc="tx.amount"/> CFA</div>
-                    <div class="flex-fill text-end" t-esc="tx.payment_method"/>
-                  </div>
-                </t>
-              </div>
-
-              <div class="text-center mt-2" t-if="state.transactions.length > state.itemsPerPage">
-                <button class="btn btn-sm btn-outline-secondary me-2"
-                        t-on-click="() => this.changePage(-1)"
-                        t-att-disabled="state.currentPage === 1">Précédent</button>
-                <span class="mx-2">Page <t t-esc="state.currentPage"/></span>
-                <button class="btn btn-sm btn-outline-secondary"
-                        t-on-click="() => this.changePage(1)"
-                        t-att-disabled="(state.currentPage * state.itemsPerPage) >= state.transactions.length">Suivant</button>
-              </div>
+            <div class="d-flex fw-bold border-bottom pb-1 mb-2 small text-uppercase">
+              <div class="flex-fill">Opérateur</div>
+              <div class="flex-fill">Plaque</div>
+              <div class="flex-fill">Date</div>
+              <div class="flex-fill">Heure</div>
+              <div class="flex-fill">Montant</div>
+              <div class="flex-fill text-end">Paiement</div>
             </div>
+
+            <div class="transaction-list">
+              <t t-foreach="state.paginated" t-as="tx" t-key="tx.id">
+                <div class="d-flex transaction-line">
+                  <div class="flex-fill" t-esc="tx.operator"/>
+                  <div class="flex-fill" t-esc="tx.plate"/>
+                  <div class="flex-fill" t-esc="tx.date"/>
+                  <div class="flex-fill" t-esc="tx.time"/>
+                  <div class="flex-fill"><t t-esc="tx.amount"/> CFA</div>
+                  <div class="flex-fill text-end" t-esc="tx.payment_method"/>
+                </div>
+              </t>
+            </div>
+
+            <div class="text-center mt-2"
+                 t-if="state.transactions.length > state.itemsPerPage">
+              <button class="btn btn-sm btn-outline-secondary me-2"
+                      t-on-click="() => this.changePage(-1)"
+                      t-att-disabled="state.currentPage === 1">Précédent</button>
+              <span class="mx-2">Page <t t-esc="state.currentPage"/></span>
+              <button class="btn btn-sm btn-outline-secondary"
+                      t-on-click="() => this.changePage(1)"
+                      t-att-disabled="(state.currentPage * state.itemsPerPage) >= state.transactions.length">Suivant</button>
+            </div>
+
+          </div>
         </div>
 
         <!-- Clavier rapide -->
@@ -64,7 +66,8 @@
           <div class="border rounded p-3 bg-white d-flex flex-column gap-3">
 
             <!-- Type et catégorie détectée -->
-            <div class="text-center py-3 rounded border" style="background-color: #f8f9fa;">
+            <div class="text-center py-3 rounded border"
+                 style="background-color: #f8f9fa;">
               <t t-if="state.detected_type">
                 <div class="fs-6 text-dark">
                   <strong><t t-esc="state.detected_type"/></strong>
@@ -82,7 +85,8 @@
             </button>
 
             <!-- Nouvelle section plaque -->
-            <div class="text-center py-3 rounded border" style="background-color: #f8f9fa;; min-height: 60px;">
+            <div class="text-center py-3 rounded border"
+                 style="background-color: #f8f9fa; min-height: 60px;">
               <t t-if="state.detected_plate">
                 <div class="fs-6 text-dark">
                   <strong>Plaque détectée </strong>
@@ -90,9 +94,9 @@
                 </div>
               </t>
             </div>
+
           </div>
         </div>
-
 
         <!-- Modal : Paiement Manuel -->
         <t t-if="state.showModal">
@@ -100,14 +104,17 @@
                style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1040;"></div>
 
           <div class="modal-content bg-white p-4 rounded shadow"
-              style="width: 700px; max-height: 80vh; overflow-y: auto; margin:auto; top:10%; position:absolute; left:0; right:0; z-index:1055;">
-
+               style="width: 700px; max-height: 80vh; overflow-y: auto; margin:auto; top:10%; position:absolute; left:0; right:0; z-index:1055;">
 
             <div class="d-flex justify-content-between" style="gap: 20px;">
               <div style="flex: 1;">
+
                 <div class="mb-3">
                   <label class="form-label">Plaque</label>
-                  <input type="text" class="form-control" t-model="state.form.plate" placeholder="Ex : TR-123-AB"/>
+                  <input type="text"
+                         class="form-control"
+                         t-model="state.form.plate"
+                         placeholder="Ex : TR-123-AB"/>
                 </div>
 
                 <div class="mb-3">
@@ -115,9 +122,11 @@
                   <div class="vehicle-grid">
                     <t t-foreach="vehicleCategories" t-as="cat" t-key="cat">
                       <div class="vehicle-tile"
-                          t-att-class="{ 'selected': state.form.vehicle_type === cat }"
-                          t-on-click="() => this.selectVehicleType(cat)">
-                        <img t-att-src="'/anpr_peage_manager/static/src/img/' + cat + '.png'" alt="" class="vehicle-icon"/>
+                           t-att-class="{ 'selected': state.form.vehicle_type === cat }"
+                           t-on-click="() => this.selectVehicleType(cat)">
+                        <img t-att-src="'/anpr_peage_manager/static/src/img/' + cat + '.png'"
+                             alt=""
+                             class="vehicle-icon"/>
                         <div class="vehicle-label"><t t-esc="cat"/></div>
                       </div>
                     </t>
@@ -126,24 +135,34 @@
 
                 <div class="mb-3">
                   <label class="form-label">Montant à payer (CFA)</label>
-                  <input type="number" class="form-control" t-att-value="state.form.amount" readonly="readonly"/>
+                  <input type="number"
+                         class="form-control"
+                         t-att-value="state.form.amount"
+                         readonly="readonly"/>
                 </div>
 
                 <div class="d-flex justify-content-between mt-3">
                   <button class="btn btn-secondary" t-on-click="closeModal">Annuler</button>
-                  <button class="btn btn-success" t-on-click="confirmManualPayment"
+                  <button class="btn btn-success"
+                          t-on-click="confirmManualPayment"
                           t-att-disabled="!state.form.plate || !state.form.vehicle_type">
                     Payer
                   </button>
                 </div>
+
               </div>
 
               <!-- Clavier plaque -->
               <div style="flex: 1;">
                 <div class="d-flex flex-wrap justify-content-center">
-                  <t t-foreach="['1','2','3','4','5','6','7','8','9','0','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','-']"
+                  <t t-foreach="[
+                       '1','2','3','4','5','6','7','8','9','0',
+                       'A','B','C','D','E','F','G','H','I','J',
+                       'K','L','M','N','O','P','Q','R','S','T',
+                       'U','V','W','X','Y','Z','-']"
                      t-as="key" t-key="key">
-                    <button class="btn btn-outline-dark m-1" style="width: 50px;"
+                    <button class="btn btn-outline-dark m-1"
+                            style="width: 50px;"
                             t-on-click="onKeyboardKeyClick"
                             t-att-data-key="key">
                       <t t-esc="key"/>
@@ -151,9 +170,14 @@
                   </t>
                 </div>
                 <div class="text-center mt-2">
-                  <button class="btn btn-danger" style="width: 150px;" t-on-click="clearPlate">Effacer</button>
+                  <button class="btn btn-danger"
+                          style="width: 150px;"
+                          t-on-click="clearPlate">
+                    Effacer
+                  </button>
                 </div>
               </div>
+
             </div>
           </div>
         </t>
@@ -161,28 +185,30 @@
         <!-- Modal : Paiement Mobile Money -->
         <t t-if="state.showMobileModal">
           <div class="modal-backdrop fade show"
-              style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1040;"></div>
+               style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1040;"></div>
 
           <div class="modal-content bg-white p-4 rounded shadow"
-              style="width: 700px; max-height: 90vh; overflow-y: auto; margin:auto; top:10%; position:absolute; left:0; right:0; z-index:1055;">
-
+               style="width: 700px; max-height: 90vh; overflow-y: auto; margin:auto; top:10%; position:absolute; left:0; right:0; z-index:1055;">
 
             <div class="d-flex justify-content-between" style="gap: 20px;">
               <div style="flex: 1;">
+
                 <div class="mb-3">
                   <label class="form-label">Numéro Mobile Money</label>
-                  <input type="tel" class="form-control"
-                        t-model="state.mobileForm.numero"
-                        placeholder="Ex : 074000009"
-                        t-on-focus="() => { state.inputTarget = 'numero' }"/>
+                  <input type="tel"
+                         class="form-control"
+                         t-model="state.mobileForm.numero"
+                         placeholder="Ex : 074000009"
+                         t-on-focus="() => { state.inputTarget = 'numero' }"/>
                 </div>
 
                 <div class="mb-3">
                   <label class="form-label">Plaque</label>
-                  <input type="text" class="form-control"
-                        t-model="state.mobileForm.plate"
-                        placeholder="Ex : TR-123-AB"
-                        t-on-focus="() => { state.inputTarget = 'plate' }"/>
+                  <input type="text"
+                         class="form-control"
+                         t-model="state.mobileForm.plate"
+                         placeholder="Ex : TR-123-AB"
+                         t-on-focus="() => { state.inputTarget = 'plate' }"/>
                 </div>
 
                 <div class="mb-3">
@@ -190,35 +216,47 @@
                   <div class="vehicle-grid">
                     <t t-foreach="vehicleCategories" t-as="cat" t-key="cat">
                       <div class="vehicle-tile"
-                          t-att-class="{ 'selected': state.mobileForm.vehicle_type === cat }"
-                          t-on-click="() => this.selectVehicleTypeMobile(cat)">
-                        <img t-att-src="'/anpr_peage_manager/static/src/img/' + cat + '.png'" alt="" class="vehicle-icon"/>
+                           t-att-class="{ 'selected': state.mobileForm.vehicle_type === cat }"
+                           t-on-click="() => this.selectVehicleTypeMobile(cat)">
+                        <img t-att-src="'/anpr_peage_manager/static/src/img/' + cat + '.png'"
+                             alt=""
+                             class="vehicle-icon"/>
                         <div class="vehicle-label"><t t-esc="cat"/></div>
                       </div>
                     </t>
                   </div>
                 </div>
+
                 <div class="mb-3">
                   <label class="form-label">Montant à payer (CFA)</label>
-                  <input type="number" class="form-control" t-att-value="state.mobileForm.amount" readonly="readonly"/>
+                  <input type="number"
+                         class="form-control"
+                         t-att-value="state.mobileForm.amount"
+                         readonly="readonly"/>
                 </div>
 
                 <div class="d-flex justify-content-between">
                   <button class="btn btn-secondary" t-on-click="closeMobileModal">Annuler</button>
-                  <button class="btn btn-success" 
-                          t-on-click="confirmMobileMoneyPayment" 
+                  <button class="btn btn-success"
+                          t-on-click="confirmMobileMoneyPayment"
                           t-att-disabled="state.loading || !state.mobileForm.numero">
                     <t t-if="!state.loading">Payer maintenant</t>
                     <t t-if="state.loading">Paiement en cours...</t>
                   </button>
                 </div>
+
               </div>
 
               <div style="flex: 1;">
                 <div class="d-flex flex-wrap justify-content-center">
-                  <t t-foreach="['1','2','3','4','5','6','7','8','9','0','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','-']"
-                    t-as="key" t-key="key">
-                    <button class="btn btn-outline-dark m-1" style="width: 50px;"
+                  <t t-foreach="[
+                       '1','2','3','4','5','6','7','8','9','0',
+                       'A','B','C','D','E','F','G','H','I','J',
+                       'K','L','M','N','O','P','Q','R','S','T',
+                       'U','V','W','X','Y','Z','-']"
+                     t-as="key" t-key="key">
+                    <button class="btn btn-outline-dark m-1"
+                            style="width: 50px;"
                             t-on-click="onKeyboardKeyClickMobile"
                             t-att-data-key="key">
                       <t t-esc="key"/>
@@ -226,21 +264,27 @@
                   </t>
                 </div>
                 <div class="text-center mt-2">
-                  <button class="btn btn-danger" style="width: 150px;" t-on-click="clearMobileInput">Effacer</button>
+                  <button class="btn btn-danger"
+                          style="width: 150px;"
+                          t-on-click="clearMobileInput">
+                    Effacer
+                  </button>
                 </div>
               </div>
+
             </div>
           </div>
         </t>
 
       </div>
-  
+
+      <!-- Modal de confirmation “Fermer la caisse” -->
       <t t-if="state.showCloseConfirm">
         <div class="modal-backdrop fade show"
-            style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1040;"></div>
+             style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1040;"></div>
 
         <div class="modal-content bg-white p-4 rounded shadow"
-            style="width: 500px; margin:auto; top:25%; position:fixed; left:0; right:0; z-index:1055; text-align:center;">
+             style="width: 500px; margin:auto; top:25%; position:fixed; left:0; right:0; z-index:1055; text-align:center;">
           <h5 class="mb-3">Confirmer la fermeture de la caisse ?</h5>
           <p class="text-muted">Toutes les transactions en cours seront enregistrées.</p>
           <div class="d-flex justify-content-center gap-3 mt-4">
@@ -249,6 +293,7 @@
           </div>
         </div>
       </t>
+
     </div>
   </t>
 </templates>

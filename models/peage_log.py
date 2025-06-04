@@ -47,12 +47,4 @@ class AnprLog(models.Model):
         self.payment_status = 'failed'
         self.transaction_message = message
 
-    @api.model
-    def get_current_user_info(self):
-        """Ne crée rien, renvoie juste id, name et URL avatar."""
-        user = self.env.user
-        return {
-            'id': user.id,
-            'name': user.name,
-            'avatar_url': f"/web/image/res.users/{user.id}/image_128",
-        }
+    
