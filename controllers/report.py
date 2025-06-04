@@ -1,7 +1,7 @@
 # anpr_peage_manager/controllers/report.py
 
 from odoo import http
-from odoo.http import request
+from odoo.http import request, Response  
 from datetime import datetime, timedelta
 from pytz import timezone
 from io import BytesIO
@@ -12,15 +12,24 @@ from reportlab.lib.units import mm
 from reportlab.lib import colors
 import base64
 import logging
+import csv  
 
 _logger = logging.getLogger(__name__)
 
 def now_gabon():
     return datetime.now(timezone("Africa/Libreville")).replace(tzinfo=None)
 
-def compute_date_range(period):
+
+def compute_date_range(period, start_str=None, end_str=None):
     today = now_gabon().date()
 
+    # Si "custom" et on a start/end en chaînes "YYYY-MM-DD"
+    if period == "custom" and start_str and end_str:
+        start = datetime.strptime(start_str, "%Y-%m-%d")
+        end = datetime.strptime(end_str, "%Y-%m-%d") + timedelta(hours=23, minutes=59, seconds=59)
+        return start, end
+
+    # Sinon comportement normal :
     if period == "daily":
         start = datetime.combine(today, datetime.min.time())
         end = datetime.combine(today, datetime.max.time())
@@ -55,7 +64,12 @@ def compute_date_range(period):
 
 def generate_report_pdf(period, start, end, user):
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=20*mm, leftMargin=20*mm, topMargin=20*mm, bottomMargin=20*mm)
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=20*mm, leftMargin=20*mm,
+        topMargin=20*mm, bottomMargin=20*mm
+    )
     styles = getSampleStyleSheet()
     elements = []
 
@@ -64,7 +78,8 @@ def generate_report_pdf(period, start, end, user):
         f"Caissier : <b>{user.name}</b><br/>"
         f"Période : <b>{start.strftime('%d/%m/%Y')} → {end.strftime('%d/%m/%Y')}</b><br/>"
         f"Généré le : <b>{now_gabon().strftime('%d/%m/%Y %H:%M')}</b>",
-        styles['Normal'])
+        styles['Normal']
+    )
 
     elements.extend([title, Spacer(1, 12), info, Spacer(1, 20)])
 
@@ -112,28 +127,6 @@ def generate_report_pdf(period, start, end, user):
     buffer.close()
     return pdf
 
-def send_report_email(to_email, subject, body, pdf_data, filename="rapport.pdf"):
-    env = request.env
-    smtp_user = env['ir.mail_server'].sudo().search([], limit=1).smtp_user or 'noreply@example.com'
-
-    attachment = env['ir.attachment'].sudo().create({
-        'name': filename,
-        'type': 'binary',
-        'datas': base64.b64encode(pdf_data).decode('utf-8'),
-        'mimetype': 'application/pdf',
-    })
-
-    mail = env['mail.mail'].sudo().create({
-        'subject': subject,
-        'body_html': f"<p>{body}</p>",
-        'email_to': to_email,
-        'email_from': smtp_user,
-        'attachment_ids': [(6, 0, [attachment.id])],
-    })
-
-    mail.send()
-    _logger.info("Rapport envoyé à %s", to_email)
-
 class ANPRReportController(http.Controller):
 
     @http.route('/anpr_peage/send_report', type='json', auth='user')
@@ -154,7 +147,66 @@ class ANPRReportController(http.Controller):
             )
 
             return {'status': 'success', 'message': 'Rapport envoyé avec succès.'}
-
         except Exception as e:
             _logger.error("Erreur lors de l'envoi du rapport : %s", e)
             return {'status': 'error', 'message': str(e)}
+
+    @http.route(
+        '/anpr_peage/download_report_pdf',
+        type='http', auth='user', methods=['GET'], csrf=False
+    )
+    def download_report_pdf(self, user_id, period, start=None, end=None, **kwargs):
+        try:
+            user = request.env['res.users'].sudo().browse(int(user_id))
+            # Maintenant compute_date_range attend aussi (period, start_str, end_str)
+            start_dt, end_dt = compute_date_range(period, start, end)
+
+            pdf_data = generate_report_pdf(period, start_dt, end_dt, user)
+            filename = f"rapport_caissier_{user_id}_{period}.pdf"
+            headers = [
+                ('Content-Type', 'application/pdf'),
+                ('Content-Disposition', f'attachment; filename="{filename}"')
+            ]
+            return Response(pdf_data, headers=headers)
+        except Exception as e:
+            _logger.error("Erreur export PDF : %s", e)
+            return request.not_found()
+
+    @http.route(
+        '/anpr_peage/download_report_excel',
+        type='http', auth='user', methods=['GET'], csrf=False
+    )
+    def download_report_excel(self, user_id, period, start=None, end=None, **kwargs):
+        try:
+            user = request.env['res.users'].sudo().browse(int(user_id))
+            start_dt, end_dt = compute_date_range(period, start, end)
+
+            logs = request.env['anpr.log'].sudo().search([
+                ('user_id', '=', user.id),
+                ('paid_at', '>=', start_dt),
+                ('paid_at', '<=', end_dt),
+                ('payment_status', '=', 'success')
+            ], order="paid_at asc")
+
+            output = BytesIO()
+            writer = csv.writer(output, delimiter=";")
+            writer.writerow(["Date", "Heure", "Plaque", "Montant (CFA)", "Methode"])
+            for log in logs:
+                dt = log.paid_at.strftime("%d/%m/%Y")
+                hr = log.paid_at.strftime("%H:%M")
+                plate = log.plate or "-"
+                amount = f"{log.amount:,.0f}"
+                method = log.payment_method.upper()
+                writer.writerow([dt, hr, plate, amount, method])
+            data = output.getvalue()
+            output.close()
+
+            filename = f"rapport_caissier_{user_id}_{period}.csv"
+            headers = [
+                ('Content-Type', 'text/csv; charset=utf-8'),
+                ('Content-Disposition', f'attachment; filename="{filename}"')
+            ]
+            return Response(data, headers=headers)
+        except Exception as e:
+            _logger.error("Erreur export Excel/CSV : %s", e)
+            return request.not_found()

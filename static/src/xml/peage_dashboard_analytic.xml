@@ -123,7 +123,6 @@
                 last:tw-border-0
                 hover:tw-bg-gray-50 tw-transition-colors
               ">
-              
               <!-- Avatar + Nom + Total -->
               <div class="tw-flex tw-items-center tw-space-x-3">
                 <div class="tw-w-10 tw-h-10 tw-rounded-full tw-bg-blue-100 tw-flex tw-items-center tw-justify-center">
@@ -134,18 +133,39 @@
                   <p class="tw-text-sm tw-text-gray-600 tw-mt-0.5" t-esc="formatCurrency(user.total)" />
                 </div>
               </div>
-              
-              <!-- Lien « Voir » discret appelle showTransactions -->
-              <a
-                class="
-                  tw-text-indigo-600 tw-text-sm tw-font-medium
-                  hover:tw-text-indigo-800 tw-transition-colors
-                "
-                href='#'
-                t-on-click="(ev) =>  showTransactions(user.id, ev) "   
-              >
-                Voir
-              </a>
+
+              <!-- Icônes : Œil (voir), PDF (export PDF) et Excel (export CSV/Excel) -->
+              <div class="tw-flex tw-space-x-4">
+                <!-- 1) Œil → redirige vers la liste des transactions -->
+                <a
+                  href="#"
+                  class="tw-text-indigo-600 hover:tw-text-indigo-800"
+                  t-on-click.prevent="() => this.showTransactions(user.id)"
+                  t-att-title="'Voir les transactions de ' + user.name"
+                >
+                  <i class="fa fa-eye tw-text-xl"></i>
+                </a>
+
+                <!-- 2) PDF → télécharge le rapport PDF -->
+                <a
+                  href="#"
+                  class="tw-text-red-600 hover:tw-text-red-800"
+                  t-on-click.prevent="() => this.exportPDF(user.id)"
+                  t-att-title="'Exporter en PDF pour ' + user.name"
+                >
+                  <i class="fa fa-file-pdf-o tw-text-xl"></i>
+                </a>
+
+                <!-- 3) Excel → télécharge le rapport Excel/CSV -->
+                <a
+                  href="#"
+                  class="tw-text-green-600 hover:tw-text-green-800"
+                  t-on-click.prevent="() => this.exportExcel(user.id)"
+                  t-att-title="'Exporter en Excel pour ' + user.name"
+                >
+                  <i class="fa fa-file-excel-o tw-text-xl"></i>
+                </a>
+              </div>
             </div>
           </t>
         </div>
