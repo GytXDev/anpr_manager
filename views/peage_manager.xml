@@ -15,6 +15,14 @@
       <field name="tag">anpr_peage_main</field>
     </record>
 
+    <!-- Menu pour accéder au dashboard analytique -->
+    <menuitem id="menu_peage_dashboard_analytic"
+          name="Tableau de Bord"
+          parent="menu_anpr_peage_root"
+          action="action_client_peage_dashboard_analytic"
+          sequence="3"
+          groups="anpr_peage_manager.group_peage_superviseur"/>
+
     <!-- Action client Owl pour le dashboard analytique -->
     <record id="action_client_peage_dashboard_analytic" model="ir.actions.client">
         <field name="name">Tableau de Bord</field>
@@ -28,13 +36,7 @@
               action="action_client_peage_main"
               sequence="1"/>
 
-    <!-- Menu pour accéder au dashboard analytique -->
-    <menuitem id="menu_peage_dashboard_analytic"
-              name="Tableau de Bord"
-              parent="menu_anpr_peage_root"
-              action="action_client_peage_dashboard_analytic"
-              sequence="3"/>
-
+  
     <!-- <record id="action_anpr_settings" model="ir.actions.act_window">
         <field name="name">Configuration Péage</field>
         <field name="res_model">res.config.settings</field>

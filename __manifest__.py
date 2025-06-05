@@ -13,10 +13,10 @@
     'depends': ['base', 'web', 'account', 'base_setup'],
     'data': [
         'security/ir.model.access.csv',
+        'security/groups.xml',
         'views/peage_manager.xml',
         'views/res_config_settings_view.xml',
         'data/sequence.xml',
-        'security/groups.xml',
     ],
     'assets': {
         'web.assets_backend': [

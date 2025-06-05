@@ -122,10 +122,11 @@ export class PeageDashboard extends Component {
             this.vehicleCategories = Object.keys(this.tarifsHT);
 
             // 3) Récupérer la liste des caméras autorisées
-            this.state.allowed_cameras = (userInfo.artemis_event_src_codes ?? "")
-                .split(',')
-                .map(code => parseInt(code.trim(), 10))
-                .filter(code => !isNaN(code));
+            this.state.allowed_cameras = Array.isArray(userInfo.artemis_event_src_codes)
+                ? userInfo.artemis_event_src_codes.map(c => parseInt(c, 10)).filter(c => !isNaN(c))
+                : (typeof userInfo.artemis_event_src_codes === "string"
+                    ? userInfo.artemis_event_src_codes.split(',').map(c => parseInt(c.trim(), 10)).filter(c => !isNaN(c))
+                    : []);
             console.log("→ DEBUG onWillStart: allowed_cameras =", this.state.allowed_cameras);
 
             // 4) Récupérer l’URL Flask pour la détection de plaque
