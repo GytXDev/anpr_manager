@@ -10,7 +10,7 @@
     """,
     'author': 'Ogooué Technologies',
     'website': 'https://ogoouetech.com',
-    'depends': ['base', 'web', 'account', 'base_setup'],
+    'depends': ['base', 'web', 'account', 'base_setup', 'anpr_peage_subscription'],
     'data': [
         'security/ir.model.access.csv',
         'security/groups.xml',

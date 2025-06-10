@@ -143,7 +143,7 @@ export class PeageDashboard extends Component {
             // 5) Charger l’historique des transactions de l’utilisateur
             try {
                 const resultTx = await rpc("/anpr_peage/transactions_user");
-                const paymentLabels = { manual: "Manuel", mobile: "Mobile Money" };
+                const paymentLabels = { manual: "Manuel", mobile: "Mobile Money", subscription: "Abonnement" };
                 this.state.transactions = (resultTx || []).map(tx => ({
                     ...tx,
                     payment_method: paymentLabels[tx.payment_method] || "Inconnu"
@@ -212,46 +212,66 @@ export class PeageDashboard extends Component {
             const srcIndex = data.src_index;
             const allowed = this.state.allowed_cameras;
 
-            // Si la caméra n’est pas autorisée, on sort immédiatement
+            // Si la caméra n'est pas autorisée, on sort immédiatement
             if (!allowed.includes(srcIndex)) {
                 console.log(`Plaque ignorée (caméra non autorisée) : ${data.plate} (src=${srcIndex})`);
                 return;
             }
 
-            // Si Flask renvoie une plaque valide, on l’affiche et on calcule le montant TTC
+            // Si Flask renvoie une plaque valide
             if (data.plate) {
-                const code = parseInt(data.vehicle_type, 10);
-                const category = CODE_TO_CATEGORY_TEXT[code] || "Autres";
-                const humanLabel = CODE_TO_TYPE_TEXT[code] || "Autre";
-                const tarifTTC = this.getTTC(category);
-
-                // On stocke immédiatement la plaque, le label humain et la catégorie détectées
-                this.state.detected_plate = data.plate;
-                this.state.detected_type_code = code;
-                this.state.detected_type = humanLabel;
-                this.state.detected_category = category;
-
-                // On remplit les formulaires avec le TTC
-                this.state.form = {
-                    plate: data.plate,
-                    vehicle_type: category,
-                    amount: tarifTTC
-                };
-                this.state.mobileForm = {
-                    plate: data.plate,
-                    vehicle_type: category,
-                    numero: "",
-                    amount: tarifTTC
-                };
-
-                // On envoie le message sur le VFD
-                await rpc("/anpr_peage/scroll_message", {
-                    message: `TOTAL: ${tarifTTC} CFA`,
-                    permanent: true
+                // Vérifier d'abord si c'est un abonné
+                const isSubscribed = await rpc("/anpr_peage/check_subscription", {
+                    plate: data.plate
                 });
+
+                if (isSubscribed.exists) {
+                    await rpc("/anpr_peage/scroll_message", {
+                        message: "ABONNE - PASSAGE AUTORISE",
+                        permanent: true
+                    });
+
+                    this._addTransaction(data.plate, isSubscribed.amount || 0, "subscription");
+
+                    // Réafficher message par défaut après 4 secondes
+                    setTimeout(() => {
+                        rpc("/anpr_peage/scroll_message", {
+                            message: "*VFD DISPLAY PD220 * HAVE A NICE DAY AND THANK",
+                            permanent: true
+                        });
+                    }, 4000);
+                }
+                else {
+                    // Cas non abonné ou solde insuffisant => paiement normal
+                    const code = parseInt(data.vehicle_type, 10);
+                    const category = CODE_TO_CATEGORY_TEXT[code] || "Autres";
+                    const humanLabel = CODE_TO_TYPE_TEXT[code] || "Autre";
+                    const tarifTTC = this.getTTC(category);
+
+                    this.state.detected_plate = data.plate;
+                    this.state.detected_type_code = code;
+                    this.state.detected_type = humanLabel;
+                    this.state.detected_category = category;
+
+                    this.state.form = {
+                        plate: data.plate,
+                        vehicle_type: category,
+                        amount: tarifTTC
+                    };
+                    this.state.mobileForm = {
+                        plate: data.plate,
+                        vehicle_type: category,
+                        numero: "",
+                        amount: tarifTTC
+                    };
+
+                    await rpc("/anpr_peage/scroll_message", {
+                        message: `TOTAL: ${tarifTTC} CFA`,
+                        permanent: true
+                    });
+                }
             }
         } catch (e) {
-            // En production, on ignore silencieusement
             console.warn("Erreur _fetchLastPlate", e);
         }
     }
@@ -282,6 +302,16 @@ export class PeageDashboard extends Component {
     // Ferme la modale “Paiement Manuel”
     closeModal() {
         this.state.showModal = false;
+        this.resetForms();
+        rpc("/anpr_peage/scroll_message", {
+            message: "*VFD DISPLAY PD220 * HAVE A NICE DAY AND THANK",
+            permanent: true
+        });
+    }
+
+    // Ferme la modale "Paiement Mobile Money"
+    closeMobileModal() {
+        this.state.showMobileModal = false;
         this.resetForms();
         rpc("/anpr_peage/scroll_message", {
             message: "*VFD DISPLAY PD220 * HAVE A NICE DAY AND THANK",
@@ -443,7 +473,7 @@ export class PeageDashboard extends Component {
         const optionsTime = { timeZone: "Africa/Libreville", hour: "2-digit", minute: "2-digit", hour12: false };
         const date = now.toLocaleDateString("fr-FR", optionsDate);
         const time = now.toLocaleTimeString("fr-FR", optionsTime);
-        const paymentLabels = { manual: "Manuel", mobile: "Mobile Money" };
+        const paymentLabels = { manual: "Manuel", mobile: "Mobile Money", subscription: "Abonnement" };
         const paymentLabel = paymentLabels[payment_method] || "Inconnu";
 
         this.state.transactions.unshift({

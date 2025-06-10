@@ -27,7 +27,9 @@ class AnprLog(models.Model):
     payment_method = fields.Selection([
         ('manual', 'Manuel'),
         ('mobile', 'Mobile Money'),
+        ('subscription', 'Abonnement')
     ], string="Type de paiement")
+
 
     transaction_message = fields.Text(string="Message de transaction")
     amount = fields.Float(string="Montant payé")

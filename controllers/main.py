@@ -11,6 +11,7 @@ from datetime import datetime, time
 import serial
 import logging
 from .pay import generate_receipt_content
+from .open_drawer import open_cash_drawer
 
 _logger = logging.getLogger(__name__)
 
@@ -140,6 +141,19 @@ class AnprPeageController(http.Controller):
             s.close()
             return True, None
         except Exception as e:
+            return False, str(e)
+
+    # Une méthode juste pour ouvrir la caisse via l'imprimante 
+    def open_drawer_only(self, ip_address, port):
+        try:
+            success, error = open_cash_drawer(ip_address, port)
+            if success:
+                return True, None
+            else:
+                _logger.error("Erreur ouverture caisse : %s", error)
+                return False, error
+        except Exception as e:
+            _logger.error("Exception lors de l'ouverture de la caisse : %s", e, exc_info=True)
             return False, str(e)
 
 
@@ -490,4 +504,61 @@ class AnprPeageController(http.Controller):
             return {
                 'status': 'error',
                 'message': str(e)
+            }
+
+    @http.route('/anpr_peage/check_subscription', type='json', auth='user')
+    def check_subscription(self, plate):
+        """Vérifie si la plaque existe dans les abonnements et traite le passage."""
+        user = request.env.user
+        plate_clean = plate.upper().strip()
+
+        subscription = request.env['anpr.subscription.pass'].sudo().search([
+            ('plate', '=', plate_clean)
+        ], limit=1)
+
+        if not subscription:
+            return {'exists': False}
+
+        # Détermine si le solde est suffisant
+        if subscription.balance >= subscription.cost_per_passage:
+            try:
+                # Débit du compte
+                subscription.debit_passage()
+
+                # Création du log
+                log_entry = request.env['anpr.log'].sudo().create({
+                    'user_id': user.id,
+                    'plate': plate_clean,
+                    'vehicle_type': subscription.vehicle_type,
+                    'amount': subscription.cost_per_passage,
+                    'transaction_message': "Passage via abonnement actif",
+                    'payment_status': "success",
+                    'payment_method': "subscription",
+                    'paid_at': now_gabon(),
+                })
+
+                # Écriture comptable
+                self._create_account_move(
+                    amount=subscription.cost_per_passage,
+                    payment_method='subscription',
+                    plate=plate_clean,
+                    user_name=user.name
+                )
+
+                # Ouverture de la caisse
+                ip_addr = user.printer_ip
+                port = int(user.printer_port or 9100)
+                if ip_addr:
+                    self.open_drawer_only(ip_addr, port)
+
+                return {'exists': True}
+            except Exception as e:
+                return {'exists': False, 'error': str(e)}
+        else:
+            # Solde insuffisant, rediriger vers paiement normal
+            return {
+                'exists': False,
+                'insufficient_balance': True,
+                'amount_due': subscription.cost_per_passage,
+                'vehicle_type': subscription.vehicle_type
             }
