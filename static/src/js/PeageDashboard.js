@@ -208,67 +208,80 @@ export class PeageDashboard extends Component {
     async _fetchLastPlate() {
         try {
             const resp = await fetch(this.state.flask_url);
-            const data = await resp.json();
-            const srcIndex = data.src_index;
+            const dataMap = await resp.json(); // dataMap = { "1": { ... }, "2": { ... } }
             const allowed = this.state.allowed_cameras;
+            const lastTx = this.state.transactions?.[0];
 
-            // Si la caméra n'est pas autorisée, on sort immédiatement
-            if (!allowed.includes(srcIndex)) {
-                console.log(`Plaque ignorée (caméra non autorisée) : ${data.plate} (src=${srcIndex})`);
-                return;
-            }
+            for (const [srcIndexStr, data] of Object.entries(dataMap)) {
+                const srcIndex = parseInt(srcIndexStr, 10);
 
-            // Si Flask renvoie une plaque valide
-            if (data.plate) {
-                // Vérifier d'abord si c'est un abonné
-                const isSubscribed = await rpc("/anpr_peage/check_subscription", {
-                    plate: data.plate
-                });
+                // Caméra non autorisée → on ignore
+                if (!allowed.includes(srcIndex)) {
+                    console.log(`Plaque ignorée (caméra non autorisée) : ${data.plate} (src=${srcIndex})`);
+                    continue;
+                }
 
-                if (isSubscribed.exists) {
-                    await rpc("/anpr_peage/scroll_message", {
-                        message: "ABONNE - PASSAGE AUTORISE",
-                        permanent: true
+                // Plaque déjà enregistrée récemment → on ignore
+                if (lastTx && lastTx.plate === data.plate) {
+                    console.log(`Plaque déjà enregistrée récemment : ${data.plate}`);
+                    continue;
+                }
+
+                // Plaque détectée
+                if (data.plate) {
+                    const isSubscribed = await rpc("/anpr_peage/check_subscription", {
+                        plate: data.plate
                     });
 
-                    this._addTransaction(data.plate, isSubscribed.amount || 0, "subscription");
-
-                    // Réafficher message par défaut après 4 secondes
-                    setTimeout(() => {
-                        rpc("/anpr_peage/scroll_message", {
-                            message: "*VFD DISPLAY PD220 * HAVE A NICE DAY AND THANK",
+                    if (isSubscribed.exists) {
+                        await rpc("/anpr_peage/scroll_message", {
+                            message: "ABONNE - PASSAGE AUTORISE",
                             permanent: true
                         });
-                    }, 4000);
-                }
-                else {
-                    // Cas non abonné ou solde insuffisant => paiement normal
-                    const code = parseInt(data.vehicle_type, 10);
-                    const category = CODE_TO_CATEGORY_TEXT[code] || "Autres";
-                    const humanLabel = CODE_TO_TYPE_TEXT[code] || "Autre";
-                    const tarifTTC = this.getTTC(category);
 
-                    this.state.detected_plate = data.plate;
-                    this.state.detected_type_code = code;
-                    this.state.detected_type = humanLabel;
-                    this.state.detected_category = category;
+                        this._addTransaction(data.plate, isSubscribed.amount || 0, "subscription");
+                        this.notification.add("Passage abonné.", { type: "success" });
 
-                    this.state.form = {
-                        plate: data.plate,
-                        vehicle_type: category,
-                        amount: tarifTTC
-                    };
-                    this.state.mobileForm = {
-                        plate: data.plate,
-                        vehicle_type: category,
-                        numero: "",
-                        amount: tarifTTC
-                    };
+                        // Suppression de l'événement traité
+                        await fetch(`${this.state.flask_url}?src_index=${srcIndex}`, { method: 'DELETE' });
 
-                    await rpc("/anpr_peage/scroll_message", {
-                        message: `TOTAL: ${tarifTTC} CFA`,
-                        permanent: true
-                    });
+                        setTimeout(() => {
+                            rpc("/anpr_peage/scroll_message", {
+                                message: "*VFD DISPLAY PD220 * HAVE A NICE DAY AND THANK",
+                                permanent: true
+                            });
+                        }, 4000);
+                    } else {
+                        const code = parseInt(data.vehicle_type, 10);
+                        const category = CODE_TO_CATEGORY_TEXT[code] || "Autres";
+                        const humanLabel = CODE_TO_TYPE_TEXT[code] || "Autre";
+                        const tarifTTC = this.getTTC(category);
+
+                        this.state.detected_plate = data.plate;
+                        this.state.detected_type_code = code;
+                        this.state.detected_type = humanLabel;
+                        this.state.detected_category = category;
+
+                        this.state.form = {
+                            plate: data.plate,
+                            vehicle_type: category,
+                            amount: tarifTTC
+                        };
+                        this.state.mobileForm = {
+                            plate: data.plate,
+                            vehicle_type: category,
+                            numero: "",
+                            amount: tarifTTC
+                        };
+
+                        await rpc("/anpr_peage/scroll_message", {
+                            message: `TOTAL: ${tarifTTC} CFA`,
+                            permanent: true
+                        });
+                    }
+
+                    // On traite un seul événement à la fois → on sort
+                    break;
                 }
             }
         } catch (e) {
@@ -415,7 +428,7 @@ export class PeageDashboard extends Component {
 
                 this._addTransaction(plate, montantTTC, "manual");
                 this.notification.add("Paiement manuel enregistré.", { type: "success" });
-                await fetch(this.state.flask_url, { method: 'DELETE' });
+                await fetch(`${this.state.flask_url}?src_index=${data.src_index}`, { method: 'DELETE' });
                 this.closeModal();
             } else {
                 this.notification.add(`Échec : ${res.message}`, { type: "danger" });
@@ -453,7 +466,7 @@ export class PeageDashboard extends Component {
 
                 this._addTransaction(plate, montantTTC, "mobile");
                 this.notification.add("Paiement réussi !", { type: "success" });
-                await fetch(this.state.flask_url, { method: 'DELETE' });
+                await fetch(`${this.state.flask_url}?src_index=${data.src_index}`, { method: 'DELETE' });
                 this.closeMobileModal();
             } else {
                 this.notification.add(`⚠️ ${res.message}`, { type: "warning" });
@@ -501,6 +514,43 @@ export class PeageDashboard extends Component {
             this.state.currentPage = newPage;
             this.paginateTransactions();
         }
+    }
+
+    closeCashDrawer() {
+        this.state.showCloseConfirm = true;
+    }
+
+    async confirmCloseCashDrawer() {
+        try {
+            // Appel de l'endpoint backend pour logout
+            const result = await rpc("/anpr_peage/logout_user");
+
+            if (result.status === "success") {
+                this.notification.add(`Caisse fermée ${this.state.closingAmount} CFA`, {
+                    type: "success",
+                });
+
+                // Rediriger vers l'écran de login ou recharger la page
+                window.location.href = "/web/login"; // ou "/" selon ta config
+            } else {
+                this.notification.add("Erreur lors de la fermeture de caisse : " + result.message, {
+                    type: "danger",
+                    sticky: true,
+                });
+            }
+        } catch (error) {
+            console.error("Erreur RPC logout:", error);
+            this.notification.add("Erreur inattendue lors de la déconnexion.", {
+                type: "danger",
+                sticky: true,
+            });
+        }
+
+        this.state.showCloseConfirm = false;
+    }
+
+    cancelCloseCashDrawer() {
+        this.state.showCloseConfirm = false;
     }
 
     resetForms() {
