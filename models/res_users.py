@@ -55,3 +55,10 @@ class ResUsers(models.Model):
         string="Email d'envoi du rapport",
         help="Adresse email qui sera utilisée comme expéditeur pour l’envoi des rapports."
     )
+
+    # ————— Configuration du serveur distant —————
+    remote_odoo_url = fields.Char("URL Odoo distant")
+    remote_odoo_db = fields.Char("Base de données distante")
+    remote_odoo_login = fields.Char("Utilisateur distant")
+    remote_odoo_password = fields.Char("Mot de passe distant")
+    remote_odoo_prefix = fields.Char("Préfixe des écritures distantes", default="[DISTANT]")

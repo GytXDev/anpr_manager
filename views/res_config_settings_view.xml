@@ -93,6 +93,28 @@
               <field name="email_report_from"/>
             </setting>
 
+            <!-- ─── CONFIGURATION ODOO DISTANT ─── -->
+            <setting string="URL Odoo distant"
+                     help="URL du serveur Odoo distant pour la sauvegarde des écritures">
+              <field name="remote_odoo_url"/>
+            </setting>
+            <setting string="Base de données distante"
+                     help="Nom de la base de données distante">
+              <field name="remote_odoo_db"/>
+            </setting>
+            <setting string="Utilisateur distant"
+                     help="Nom d'utilisateur pour la connexion distante">
+              <field name="remote_odoo_login"/>
+            </setting>
+            <setting string="Mot de passe distant"
+                     help="Mot de passe pour la connexion distante">
+              <field name="remote_odoo_password" password="True"/>
+            </setting>
+            <setting string="Préfixe des écritures distantes"
+                     help="Texte à afficher devant les libellés des écritures distantes">
+              <field name="remote_odoo_prefix"/>
+            </setting>
+
           </block>
         </app>
       </xpath>

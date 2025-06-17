@@ -16,6 +16,13 @@ class ResConfigSettings(models.TransientModel):
     printer_ip   = fields.Char("IP de l'imprimante")
     printer_port = fields.Integer("Port de l'imprimante", default=9100)
 
+    # Connexion au serveur distant 
+    remote_odoo_url = fields.Char("URL Odoo distant")
+    remote_odoo_db = fields.Char("Base de données distante")
+    remote_odoo_login = fields.Char("Utilisateur distant")
+    remote_odoo_password = fields.Char("Mot de passe distant")
+    remote_odoo_prefix = fields.Char("Préfixe des écritures distantes", default="[DISTANT]")
+    
     tva_rate    = fields.Float(
         string="Taux de TVA (%)",
         default=18.0,
@@ -64,7 +71,9 @@ class ResConfigSettings(models.TransientModel):
             'payment_api_url', 'vfd_url', 'print_url',
             'printer_ip', 'printer_port',
             'tva_rate', 'price_autre', 'price_car', 'price_camion', 'price_4x4', 'price_bus',
-            'email_report_from',
+            'email_report_from','remote_odoo_url', 'remote_odoo_db', 
+            'remote_odoo_login', 'remote_odoo_password',
+            'remote_odoo_prefix',
         ]:
             if field_name in user._fields:
                 res[field_name] = getattr(user, field_name, False)
@@ -79,7 +88,8 @@ class ResConfigSettings(models.TransientModel):
             'payment_api_url', 'vfd_url', 'print_url',
             'printer_ip', 'printer_port',
             'tva_rate', 'price_autre', 'price_car', 'price_camion', 'price_4x4', 'price_bus',
-            'email_report_from',
+            'email_report_from', 'remote_odoo_url', 'remote_odoo_db', 
+            'remote_odoo_login', 'remote_odoo_password', 'remote_odoo_prefix',
         ]:
             if field_name in self._fields and field_name in user._fields:
                 user[field_name] = getattr(self, field_name)

@@ -152,6 +152,13 @@ export class PeageDashboard extends Component {
             } catch (err) {
                 console.error("Erreur chargement transactions :", err);
             }
+
+            // try {
+            //     await this.testRemoteConnection();
+            // } catch (err) {
+            //     console.error("Erreur test de connexion distante :", err);
+            // }
+
         });
 
         onMounted(() => {
@@ -188,6 +195,37 @@ export class PeageDashboard extends Component {
         const tauxTVA = (this.state.userConfig && this.state.userConfig.tva_rate) || 0;
         return Math.round(baseHT * (1 + tauxTVA / 100));
     }
+
+    // async testRemoteConnection() {
+    //     try {
+    //         this.notification.add("Test de connexion au serveur distant en cours...", {
+    //             type: "info",
+    //             sticky: true
+    //         });
+
+    //         const result = await rpc("/anpr_peage/test_remote_connection");
+
+    //         if (result.status === "success") {
+    //             this.notification.add("✅ Connexion au serveur distant réussie", {
+    //                 type: "success",
+    //                 sticky: false
+    //             });
+
+    //             // Optionnel: tester aussi la création d'une écriture test
+    //             await this.testRemoteAccounting();
+    //         } else {
+    //             this.notification.add(`❌ Échec de connexion: ${result.message}`, {
+    //                 type: "danger",
+    //                 sticky: true
+    //             });
+    //         }
+    //     } catch (error) {
+    //         this.notification.add("Erreur lors du test de connexion: " + error, {
+    //             type: "danger",
+    //             sticky: true
+    //         });
+    //     }
+    // }
 
     /**
      * Lance un cycle de détection + pause de 6 s avant l’appel suivant.
@@ -294,6 +332,39 @@ export class PeageDashboard extends Component {
             weekday: "short", year: "numeric", month: "long", day: "numeric",
             hour: "2-digit", minute: "2-digit", second: "2-digit"
         });
+    }
+
+    async testRemoteAccounting() {
+        try {
+            const testData = {
+                ref: "TEST CONNEXION " + new Date().toISOString(),
+                date: new Date().toISOString().split('T')[0],
+                amount: 1,
+                plate: "TEST123",
+                journal_code: "PEAGE",
+                debit_code: "531100",
+                credit_code: "706100"
+            };
+
+            const result = await rpc("/anpr_peage/create_remote_account_move", testData);
+
+            if (result) {
+                this.notification.add("✅ Test d'écriture comptable distant réussi", {
+                    type: "success",
+                    sticky: false
+                });
+            } else {
+                this.notification.add("❌ Échec de création d'écriture test", {
+                    type: "danger",
+                    sticky: true
+                });
+            }
+        } catch (error) {
+            this.notification.add("Erreur lors du test comptable: " + error, {
+                type: "danger",
+                sticky: true
+            });
+        }
     }
 
     // Ouvre la modale “Paiement Manuel” – on affiche directement le TTC
@@ -519,6 +590,7 @@ export class PeageDashboard extends Component {
     closeCashDrawer() {
         this.state.showCloseConfirm = true;
     }
+
 
     async confirmCloseCashDrawer() {
         try {
