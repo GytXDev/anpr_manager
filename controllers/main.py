@@ -64,116 +64,122 @@ def now_gabon():
 
 class AnprPeageController(http.Controller):
 
-    def _ensure_journal(self, code, payment_method):
-        journal = request.env['account.journal'].sudo().search([('code', '=', code)], limit=1)
-        if not journal:
-            journal = request.env['account.journal'].sudo().create({
-                'name': f'Péage {"Mobile" if payment_method == "mobile" else "Manuel"}',
-                'code': code,
-                'type': 'cash',
-                'company_id': request.env.company.id,
-            })
-        return journal
+    def _send_to_remote_odoo(self, ref, date, amount, plate, journal_code, debit_code, credit_code):
 
-    def _ensure_account(self, code, name, acc_type):
-        account = request.env['account.account'].sudo().search([('code', '=', code)], limit=1)
-        if not account:
-            account = request.env['account.account'].sudo().create({
-                'name': name,
-                'code': code,
-                'account_type': acc_type,
-            })
-        return account
-
-    def _send_to_remote_odoo(self, model, data, operation='create'):
-        """Envoie des données à un serveur Odoo distant"""
+        # Données de connexion vers le serveur distant
         user = request.env.user
         remote_url = user.remote_odoo_url
         db = user.remote_odoo_db
         login = user.remote_odoo_login
         password = user.remote_odoo_password
-
-        if not all([remote_url, db, login, password]):
-            _logger.warning("Paramètres de connexion distante incomplets, sauvegarde distante ignorée")
-            return False
-
-        try:
-            common = xmlrpc.client.ServerProxy(f"{remote_url}/xmlrpc/2/common")
-            uid = common.authenticate(db, login, password, {})
-
-            if not uid:
-                raise Exception("Échec d'authentification sur le serveur distant.")
-
-            models = xmlrpc.client.ServerProxy(f"{remote_url}/xmlrpc/2/object")
-
-            if operation == 'create':
-                return models.execute_kw(db, uid, password, model, 'create', [data])
-            elif operation == 'search':
-                return models.execute_kw(db, uid, password, model, 'search', data)
-            elif operation == 'write':
-                return models.execute_kw(db, uid, password, model, 'write', data)
-            else:
-                raise ValueError("Opération non supportée")
-
-        except Exception as e:
-            _logger.error(f"Erreur lors de l'envoi à Odoo distant (model={model}, operation={operation}): {str(e)}")
-            return False
-
-    def _create_remote_account_move(self, ref, date, amount, plate, journal_code, debit_code, credit_code):
-        """Crée une écriture comptable sur le serveur distant"""
         prefix = request.env.user.remote_odoo_prefix or "[DISTANT]"
         
-        # Recherche des IDs distants
-        journal_id = self._send_to_remote_odoo('account.journal', [[('code', '=', journal_code)]], 'search')
-        debit_id = self._send_to_remote_odoo('account.account', [[('code', '=', debit_code)]], 'search')
-        credit_id = self._send_to_remote_odoo('account.account', [[('code', '=', credit_code)]], 'search')
+        common = xmlrpc.client.ServerProxy(f"{remote_url}/xmlrpc/2/common")
+        uid = common.authenticate(db, login, password, {})
 
-        if not all([journal_id, debit_id, credit_id]):
-            _logger.error("Impossible de trouver les comptes/journaux sur le serveur distant")
-            return False
+        if not uid:
+            raise Exception("Échec d’authentification sur le serveur distant.")
 
-        # Création de l'écriture comptable
-        move_data = {
-            'journal_id': journal_id[0],
+        models = xmlrpc.client.ServerProxy(f"{remote_url}/xmlrpc/2/object")
+
+        # Vérification / création du journal
+        journal_ids = models.execute_kw(db, uid, password, 'account.journal', 'search', [[('code', '=', journal_code)]])
+        if journal_ids:
+            journal_id = journal_ids[0]
+        else:
+            journal_id = models.execute_kw(db, uid, password, 'account.journal', 'create', [{
+                'name': f'Péage {"Mobile" if journal_code == "PEAGE_MM" else "Manuel"}',
+                'code': journal_code,
+                'type': 'cash',
+            }])
+            _logger.info(f"[REMOTE] Journal {journal_code} créé automatiquement.")
+
+        # Vérification / création du compte débit
+        debit_ids = models.execute_kw(db, uid, password, 'account.account', 'search', [[('code', '=', debit_code)]])
+        if debit_ids:
+            debit_id = debit_ids[0]
+        else:
+            debit_id = models.execute_kw(db, uid, password, 'account.account', 'create', [{
+                'name': 'Caisse (Péage)',
+                'code': debit_code,
+                'account_type': 'asset_cash',
+            }])
+            _logger.info(f"[REMOTE] Compte débit {debit_code} créé automatiquement.")
+
+        # Vérification / création du compte crédit
+        credit_ids = models.execute_kw(db, uid, password, 'account.account', 'search', [[('code', '=', credit_code)]])
+        if credit_ids:
+            credit_id = credit_ids[0]
+        else:
+            credit_id = models.execute_kw(db, uid, password, 'account.account', 'create', [{
+                'name': 'Produits Péage',
+                'code': credit_code,
+                'account_type': 'income',
+            }])
+            _logger.info(f"[REMOTE] Compte crédit {credit_code} créé automatiquement.")
+
+        # Création de l’écriture comptable
+        move_id = models.execute_kw(db, uid, password, 'account.move', 'create', [{
+            'journal_id': journal_id,
             'ref': ref,
             'date': date,
             'line_ids': [
                 (0, 0, {
                     'name': f"{prefix} Paiement péage {plate}",
-                    'account_id': debit_id[0],
+                    'account_id': debit_id,
                     'debit': amount,
                     'credit': 0.0,
                 }),
                 (0, 0, {
                     'name': f"{prefix} Recette péage {plate}",
-                    'account_id': credit_id[0],
+                    'account_id': credit_id,
                     'debit': 0.0,
                     'credit': amount,
                 }),
             ]
-        }
-        
-        move_id = self._send_to_remote_odoo('account.move', move_data)
-        if not move_id:
-            return False
-            
-        # Validation de l'écriture
-        return self._send_to_remote_odoo('account.move', [[move_id], {'state': 'posted'}], 'write')
+        }])
 
-    def _create_remote_log_entry(self, log_data):
-        """Crée une entrée de log sur le serveur distant"""
-        return self._send_to_remote_odoo('anpr.log', log_data)
+        # Validation de l’écriture
+        models.execute_kw(db, uid, password, 'account.move', 'action_post', [[move_id]])
+        _logger.info(f"[REMOTE] Écriture comptable postée avec succès (ID {move_id}).")
 
     def _create_account_move(self, amount, payment_method, plate, user_name):
         env = request.env
         journal_code = 'PEAGE' if payment_method == 'manual' else 'PEAGE_MM'
-        debit_code = '531100'
-        credit_code = '706100'
 
-        journal = self._ensure_journal(journal_code, payment_method)
-        debit_account = self._ensure_account(debit_code, 'Caisse (Péage)', 'asset_cash')
-        credit_account = self._ensure_account(credit_code, 'Produits Péage', 'income')
+        # Définir les codes des comptes
+        debit_account_code = '531100'
+        credit_account_code = '706100'
+        
+        # Création ou récupération du journal
+        journal = env['account.journal'].sudo().search([('code', '=', journal_code)], limit=1)
+        if not journal:
+            journal = env['account.journal'].sudo().create({
+                'name': f'Péage {"Mobile" if payment_method == "mobile" else "Manuel"}',
+                'code': journal_code,
+                'type': 'cash',
+                'company_id': env.company.id,
+            })
 
+        # Création ou récupération du compte débit
+        debit_account = env['account.account'].sudo().search([('code', '=', debit_account_code)], limit=1)
+        if not debit_account:
+            debit_account = env['account.account'].sudo().create({
+                'name': 'Caisse (Péage)',
+                'code': debit_account_code,
+                'account_type': 'asset_cash',
+            })
+
+        # Création ou récupération du compte crédit
+        credit_account = env['account.account'].sudo().search([('code', '=', credit_account_code)], limit=1)
+        if not credit_account:
+            credit_account = env['account.account'].sudo().create({
+                'name': 'Produits Péage',
+                'code': credit_account_code,
+                'account_type': 'income',
+            })
+
+        # Création de l’écriture comptable locale
         move = env['account.move'].sudo().create({
             'journal_id': journal.id,
             'ref': f'Paiement {plate} - {user_name}',
@@ -196,23 +202,21 @@ class AnprPeageController(http.Controller):
 
         move.action_post()
 
-        # Envoi des données au serveur distant (sans bloquer en cas d'erreur)
+        # Envoi vers le serveur distant
         try:
-            # Envoi de l'écriture comptable
-            self._create_remote_account_move(
+            self._send_to_remote_odoo(
                 ref=move.ref,
                 date=str(move.date),
                 amount=amount,
                 plate=plate,
                 journal_code=journal_code,
-                debit_code=debit_code,
-                credit_code=credit_code
+                debit_code=debit_account_code,
+                credit_code=credit_account_code
             )
         except Exception as e:
-            _logger.warning(f"Échec de l'envoi de l'écriture comptable au serveur distant: {e}")
+            _logger.warning(f"[REMOTE BACKUP] Erreur lors de la tentative d'envoi de l'écriture distante : {e}")
 
         return move
-
 
     def print_receipt_to_printer(self, ip_address, port, plate, vehicle_type, numero, amount, status_message, ticket_number):
         
