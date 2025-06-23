@@ -49,4 +49,87 @@ class AnprLog(models.Model):
         self.payment_status = 'failed'
         self.transaction_message = message
 
-    
+    @api.model
+    def resend_failed_moves(self):
+        failed_moves = self.env['failed.remote.move'].sudo().search([])
+        for move in failed_moves:
+            try:
+                self._send_to_remote_odoo(
+                    ref=move.ref,
+                    date=str(move.date),
+                    amount=move.amount,
+                    plate=move.plate,
+                    journal_code=move.journal_code,
+                    debit_code=move.debit_code,
+                    credit_code=move.credit_code,
+                    user=move.user_id
+                )
+                move.sudo().unlink()
+                _logger.info(f"[SYNC] Réussi : {move.ref}")
+            except Exception as e:
+                _logger.warning(f"[SYNC] Échec : {move.ref} → {e}")
+
+    @api.model
+    def _send_to_remote_odoo(self, ref, date, amount, plate, journal_code, debit_code, credit_code, user=None):
+        import xmlrpc.client
+        import logging
+        _logger = logging.getLogger(__name__)
+
+        user = user or self.env.user
+        remote_url = user.remote_odoo_url
+        db = user.remote_odoo_db
+        login = user.remote_odoo_login
+        password = user.remote_odoo_password
+        prefix = user.remote_odoo_prefix or "[DISTANT]"
+
+        common = xmlrpc.client.ServerProxy(f"{remote_url}/xmlrpc/2/common")
+        uid = common.authenticate(db, login, password, {})
+
+        if not uid:
+            raise Exception("Échec d’authentification sur le serveur distant.")
+
+        models = xmlrpc.client.ServerProxy(f"{remote_url}/xmlrpc/2/object")
+
+        journal_ids = models.execute_kw(db, uid, password, 'account.journal', 'search', [[('code', '=', journal_code)]])
+        journal_id = journal_ids[0] if journal_ids else models.execute_kw(db, uid, password, 'account.journal', 'create', [{
+            'name': f'Péage {"Mobile" if journal_code == "PEAGE_MM" else "Manuel"}',
+            'code': journal_code,
+            'type': 'cash',
+        }])
+
+        debit_ids = models.execute_kw(db, uid, password, 'account.account', 'search', [[('code', '=', debit_code)]])
+        debit_id = debit_ids[0] if debit_ids else models.execute_kw(db, uid, password, 'account.account', 'create', [{
+            'name': 'Caisse (Péage)',
+            'code': debit_code,
+            'account_type': 'asset_cash',
+        }])
+
+        credit_ids = models.execute_kw(db, uid, password, 'account.account', 'search', [[('code', '=', credit_code)]])
+        credit_id = credit_ids[0] if credit_ids else models.execute_kw(db, uid, password, 'account.account', 'create', [{
+            'name': 'Produits Péage',
+            'code': credit_code,
+            'account_type': 'income',
+        }])
+
+        move_id = models.execute_kw(db, uid, password, 'account.move', 'create', [{
+            'journal_id': journal_id,
+            'ref': ref,
+            'date': date,
+            'line_ids': [
+                (0, 0, {
+                    'name': f"{prefix} Paiement péage {plate}",
+                    'account_id': debit_id,
+                    'debit': amount,
+                    'credit': 0.0,
+                }),
+                (0, 0, {
+                    'name': f"{prefix} Recette péage {plate}",
+                    'account_id': credit_id,
+                    'debit': 0.0,
+                    'credit': amount,
+                }),
+            ]
+        }])
+
+        models.execute_kw(db, uid, password, 'account.move', 'action_post', [[move_id]])
+        _logger.info(f"[REMOTE] Écriture postée avec succès : {move_id}")

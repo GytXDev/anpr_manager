@@ -64,6 +64,52 @@ def now_gabon():
 
 class AnprPeageController(http.Controller):
 
+    def _create_remote_log_entry(self, values):
+        """
+        Envoie un log de passage vers le serveur distant (modèle anpr.log).
+        """
+        user = request.env.user
+        remote_url = user.remote_odoo_url
+        db = user.remote_odoo_db
+        login = user.remote_odoo_login
+        password = user.remote_odoo_password
+        prefix = user.remote_odoo_prefix or "[DISTANT]"
+
+        if not all([remote_url, db, login, password]):
+            _logger.warning("Paramètres de connexion au serveur distant incomplets.")
+            return
+
+        try:
+            # Authentification XML-RPC
+            common = xmlrpc.client.ServerProxy(f"{remote_url}/xmlrpc/2/common")
+            uid = common.authenticate(db, login, password, {})
+
+            if not uid:
+                raise Exception("Échec d’authentification sur le serveur distant.")
+
+            models = xmlrpc.client.ServerProxy(f"{remote_url}/xmlrpc/2/object")
+
+            # Préparation des données du log
+            log_data = {
+                'user_id': uid,  # optionnel si champ user_id existe et est compatible
+                'plate': values.get('plate'),
+                'vehicle_type': values.get('vehicle_type'),
+                'amount': values.get('amount'),
+                'transaction_message': f"{prefix} {values.get('transaction_message', 'Passage détecté')}",
+                'payment_status': values.get('payment_status', 'success'),
+                'payment_method': values.get('payment_method', 'manual'),
+                'paid_at': values.get('paid_at'),  # string ou datetime
+            }
+
+            # Création du log distant
+            models.execute_kw(db, uid, password, 'anpr.log', 'create', [log_data])
+
+            _logger.info(f"[REMOTE] Log transmis pour {log_data['plate']}")
+
+        except Exception as e:
+            _logger.error(f"[REMOTE] Erreur envoi log distant : {e}")
+
+
     def _send_to_remote_odoo(self, ref, date, amount, plate, journal_code, debit_code, credit_code):
 
         # Données de connexion vers le serveur distant
@@ -214,8 +260,19 @@ class AnprPeageController(http.Controller):
                 credit_code=credit_account_code
             )
         except Exception as e:
-            _logger.warning(f"[REMOTE BACKUP] Erreur lors de la tentative d'envoi de l'écriture distante : {e}")
-
+            _logger.warning(f"[REMOTE BACKUP] Échec de l'envoi distant : {e}")
+            env['failed.remote.move'].sudo().create({
+                'ref': move.ref,
+                'date': move.date,
+                'amount': amount,
+                'plate': plate,
+                'journal_code': journal_code,
+                'debit_code': debit_account_code,
+                'credit_code': credit_account_code,
+                'user_id': request.env.user.id,
+                'error_message': str(e),
+            })
+            
         return move
 
     def print_receipt_to_printer(self, ip_address, port, plate, vehicle_type, numero, amount, status_message, ticket_number):
@@ -656,7 +713,7 @@ class AnprPeageController(http.Controller):
                     'user_id': user.id,
                     'plate': plate_clean,
                     'vehicle_type': subscription.vehicle_type,
-                    'amount': subscription.cost_per_passage,
+                    'amount': 0.0,
                     'transaction_message': "Passage via abonnement actif",
                     'payment_status': "success",
                     'payment_method': "subscription",
@@ -695,7 +752,7 @@ class AnprPeageController(http.Controller):
             except Exception as e:
                 return {'exists': False, 'error': str(e)}
         else:
-            # Solde insuffisant, rediriger vers paiement normal
+            # Solde insuffisant, redirection vers paiement normal
             return {
                 'exists': False,
                 'insufficient_balance': True,

@@ -107,6 +107,29 @@ export class PeageDashboard extends Component {
         this._flaskTimerId = null;
 
         onWillStart(async () => {
+            // Lancer le service HikCentral dès le chargement
+            try {
+                const result = await rpc('/anpr_peage/start_hikcentral');
+                if (result.status === 'success') {
+                    this.notification.add("🎥 HikCentral démarré avec succès.", {
+                        type: "success",
+                    });
+                } else {
+                    this.state.hikcentral_error = true;
+                    this.notification.add(`❌ Erreur HikCentral : ${result.message || 'Erreur inconnue'}`, {
+                        type: "danger",
+                        sticky: true,
+                    });
+                }
+            } catch (err) {
+                this.state.hikcentral_error = true;
+                this.notification.add("❌ Échec appel /start_hikcentral", {
+                    type: "danger",
+                    sticky: true,
+                });
+                console.error("Erreur RPC HikCentral :", err);
+            }
+
             // 1) Charger la configuration actuelle de l’utilisateur
             const userInfo = await rpc('/anpr_peage/get_current_user');
             this.state.userConfig = userInfo;
@@ -499,7 +522,7 @@ export class PeageDashboard extends Component {
 
                 this._addTransaction(plate, montantTTC, "manual");
                 this.notification.add("Paiement manuel enregistré.", { type: "success" });
-                await fetch(`${this.state.flask_url}?src_index=${data.src_index}`, { method: 'DELETE' });
+                await fetch(`${this.state.flask_url}?src_index=${srcIndex}`, { method: 'DELETE' });
                 this.closeModal();
             } else {
                 this.notification.add(`Échec : ${res.message}`, { type: "danger" });
@@ -537,7 +560,7 @@ export class PeageDashboard extends Component {
 
                 this._addTransaction(plate, montantTTC, "mobile");
                 this.notification.add("Paiement réussi !", { type: "success" });
-                await fetch(`${this.state.flask_url}?src_index=${data.src_index}`, { method: 'DELETE' });
+                await fetch(`${this.state.flask_url}?src_index=${srcIndex}`, { method: 'DELETE' });
                 this.closeMobileModal();
             } else {
                 this.notification.add(`⚠️ ${res.message}`, { type: "warning" });

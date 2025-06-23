@@ -17,6 +17,7 @@
         'views/peage_manager.xml',
         'views/res_config_settings_view.xml',
         'data/sequence.xml',
+        'data/cron.xml',
     ],
     'assets': {
         'web.assets_backend': [

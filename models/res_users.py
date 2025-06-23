@@ -1,3 +1,4 @@
+# anpr_peage_manager/models/res_users.py
 from odoo import models, fields
 
 class ResUsers(models.Model):
