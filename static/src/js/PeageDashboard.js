@@ -299,9 +299,8 @@ export class PeageDashboard extends Component {
                             message: "ABONNE - PASSAGE AUTORISE",
                             permanent: true
                         });
-
-                        this._addTransaction(data.plate, isSubscribed.amount || 0, "subscription");
                         this.notification.add("Passage abonné.", { type: "success" });
+                        this._addTransaction(data.plate, isSubscribed.amount || 0, "subscription");
 
                         // Suppression de l'événement traité
                         await fetch(`${this.state.flask_url}?src_index=${srcIndex}`, { method: 'DELETE' });
@@ -626,7 +625,7 @@ export class PeageDashboard extends Component {
                 });
 
                 // Rediriger vers l'écran de login ou recharger la page
-                window.location.href = "/web/login"; // ou "/" selon ta config
+                window.location.href = "/web/login"; 
             } else {
                 this.notification.add("Erreur lors de la fermeture de caisse : " + result.message, {
                     type: "danger",

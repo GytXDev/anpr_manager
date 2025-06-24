@@ -52,9 +52,9 @@ class HikcentralService(models.AbstractModel):
         payload = {"eventTypes": EVENT_TYPES}
         try:
             response = requests.post(url, headers=headers, json=payload, verify=False)
-            _logger.info(f"📡 Unsubscribe Status: {response.status_code} | {response.text}")
+            _logger.info(f"Unsubscribe Status: {response.status_code} | {response.text}")
         except Exception as e:
-            _logger.error(f"❌ Error during unsubscribe: {e}")
+            _logger.error(f"Error during unsubscribe: {e}")
 
     def subscribe_to_events(self, config):
         url = config['artemis_url'] + SUBSCRIBE_ENDPOINT
@@ -67,9 +67,9 @@ class HikcentralService(models.AbstractModel):
         }
         try:
             response = requests.post(url, headers=headers, json=payload, verify=False)
-            _logger.info(f"📡 Subscribe Status: {response.status_code} | {response.text}")
+            _logger.info(f"Subscribe Status: {response.status_code} | {response.text}")
         except Exception as e:
-            _logger.error(f"❌ Error during subscribe: {e}")
+            _logger.error(f"Error during subscribe: {e}")
 
     @api.model
     def start_hikcentral_listener(self):
@@ -79,10 +79,10 @@ class HikcentralService(models.AbstractModel):
             _logger.error(f"⚠️ Impossible de récupérer la configuration utilisateur : {e}")
             return
 
-        _logger.info(f"🚀 Souscription Artemis pour l'utilisateur {self.env.user.name}...")
+        _logger.info(f"Souscription Artemis pour l'utilisateur {self.env.user.name}...")
 
         self.unsubscribe_from_events(config)
         time.sleep(1)
         self.subscribe_to_events(config)
 
-        _logger.info("✅ Souscription Artemis effectuée.")
+        _logger.info("Souscription Artemis effectuée.")
