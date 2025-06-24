@@ -1,2 +1,3 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_anpr_log_user,access.anpr.log.user,model_anpr_log,base.group_user,1,1,1,1
+access_failed_remote_move_user,access.failed.remote.move.user,model_failed_remote_move,base.group_user,1,1,1,1

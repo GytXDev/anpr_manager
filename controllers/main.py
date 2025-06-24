@@ -134,7 +134,11 @@ class AnprPeageController(http.Controller):
             journal_id = journal_ids[0]
         else:
             journal_id = models.execute_kw(db, uid, password, 'account.journal', 'create', [{
-                'name': f'Péage {"Mobile" if journal_code == "PEAGE_MM" else "Manuel"}',
+                'name': {
+                    'PEAGE': 'Péage Manuel',
+                    'PEAGE_MM': 'Péage Mobile',
+                    'PEAGE_SUB': 'Péage Abonnement',
+                }.get(journal_code, 'Péage Inconnu'),
                 'code': journal_code,
                 'type': 'cash',
             }])
@@ -191,7 +195,15 @@ class AnprPeageController(http.Controller):
 
     def _create_account_move(self, amount, payment_method, plate, user_name):
         env = request.env
-        journal_code = 'PEAGE' if payment_method == 'manual' else 'PEAGE_MM'
+        if payment_method == 'manual':
+            journal_code = 'PEAGE'
+        elif payment_method == 'mobile':
+            journal_code = 'PEAGE_MM'
+        elif payment_method == 'subscription':
+            journal_code = 'PEAGE_SUB'
+        else:
+            journal_code = 'PEAGE'  # fallback
+
 
         # Définir les codes des comptes
         debit_account_code = '531100'
@@ -200,12 +212,19 @@ class AnprPeageController(http.Controller):
         # Création ou récupération du journal
         journal = env['account.journal'].sudo().search([('code', '=', journal_code)], limit=1)
         if not journal:
+            journal_name = {
+                'PEAGE': 'Péage Manuel',
+                'PEAGE_MM': 'Péage Mobile',
+                'PEAGE_SUB': 'Péage Abonnement',
+            }.get(journal_code, 'Péage Inconnu')
+
             journal = env['account.journal'].sudo().create({
-                'name': f'Péage {"Mobile" if payment_method == "mobile" else "Manuel"}',
+                'name': journal_name,
                 'code': journal_code,
                 'type': 'cash',
                 'company_id': env.company.id,
             })
+
 
         # Création ou récupération du compte débit
         debit_account = env['account.account'].sudo().search([('code', '=', debit_account_code)], limit=1)

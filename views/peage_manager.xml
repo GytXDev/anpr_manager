@@ -95,7 +95,6 @@
       <field name="name">Écritures échouées</field>
       <field name="res_model">failed.remote.move</field>
       <field name="view_mode">list,form</field>
-      <field name="view_id" ref="view_failed_remote_move_list"/>
     </record>
 
     <!-- **************** -->
@@ -121,7 +120,7 @@
               parent="menu_anpr_peage_root"
               action="action_failed_remote_move"
               sequence="3"
-              groups="anpr_peage_manager.group_peage_superviseur"/>
+              />
 
     <!-- Menu Dashboard -->
     <menuitem id="menu_peage_dashboard_analytic"

@@ -2,6 +2,10 @@
 from odoo import models, fields, api
 import pytz
 from datetime import datetime
+import xmlrpc.client
+import logging
+
+_logger = logging.getLogger(__name__)
 
 class AnprLog(models.Model):
     _name = 'anpr.log'
@@ -49,25 +53,6 @@ class AnprLog(models.Model):
         self.payment_status = 'failed'
         self.transaction_message = message
 
-    @api.model
-    def resend_failed_moves(self):
-        failed_moves = self.env['failed.remote.move'].sudo().search([])
-        for move in failed_moves:
-            try:
-                self._send_to_remote_odoo(
-                    ref=move.ref,
-                    date=str(move.date),
-                    amount=move.amount,
-                    plate=move.plate,
-                    journal_code=move.journal_code,
-                    debit_code=move.debit_code,
-                    credit_code=move.credit_code,
-                    user=move.user_id
-                )
-                move.sudo().unlink()
-                _logger.info(f"[SYNC] Réussi : {move.ref}")
-            except Exception as e:
-                _logger.warning(f"[SYNC] Échec : {move.ref} → {e}")
 
     @api.model
     def _send_to_remote_odoo(self, ref, date, amount, plate, journal_code, debit_code, credit_code, user=None):
@@ -90,9 +75,16 @@ class AnprLog(models.Model):
 
         models = xmlrpc.client.ServerProxy(f"{remote_url}/xmlrpc/2/object")
 
+        # Choix du nom du journal selon le code
+        journal_name = {
+            'PEAGE': 'Péage Manuel',
+            'PEAGE_MM': 'Péage Mobile',
+            'PEAGE_SUB': 'Péage Abonnement',
+        }.get(journal_code, 'Péage Inconnu')
+
         journal_ids = models.execute_kw(db, uid, password, 'account.journal', 'search', [[('code', '=', journal_code)]])
         journal_id = journal_ids[0] if journal_ids else models.execute_kw(db, uid, password, 'account.journal', 'create', [{
-            'name': f'Péage {"Mobile" if journal_code == "PEAGE_MM" else "Manuel"}',
+            'name': journal_name,
             'code': journal_code,
             'type': 'cash',
         }])
@@ -133,3 +125,24 @@ class AnprLog(models.Model):
 
         models.execute_kw(db, uid, password, 'account.move', 'action_post', [[move_id]])
         _logger.info(f"[REMOTE] Écriture postée avec succès : {move_id}")
+
+
+    @api.model
+    def resend_failed_moves(self):
+        failed_moves = self.env['failed.remote.move'].sudo().search([])
+        for move in failed_moves:
+            try:
+                self._send_to_remote_odoo(
+                    ref=move.ref,
+                    date=str(move.date),
+                    amount=move.amount,
+                    plate=move.plate,
+                    journal_code=move.journal_code,
+                    debit_code=move.debit_code,
+                    credit_code=move.credit_code,
+                    user=move.user_id
+                )
+                _logger.info(f"[SYNC] Réussi : {move.ref}")
+                move.sudo().unlink()
+            except Exception as e:
+                _logger.warning(f"[SYNC] Échec : {move.ref} → {e}")
