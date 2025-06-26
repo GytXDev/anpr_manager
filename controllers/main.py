@@ -66,7 +66,8 @@ class AnprPeageController(http.Controller):
 
     def _create_remote_log_entry(self, values):
         """
-        Envoie un log de passage vers le serveur distant (modèle anpr.log).
+        Envoie un log de passage vers le serveur distant (modèle anpr.log),
+        en liant le caissier via user_id et en ajoutant le prefix du site.
         """
         user = request.env.user
         remote_url = user.remote_odoo_url
@@ -74,41 +75,56 @@ class AnprPeageController(http.Controller):
         login = user.remote_odoo_login
         password = user.remote_odoo_password
         prefix = user.remote_odoo_prefix or "[DISTANT]"
+        peage_id = user.peage_server_id
 
         if not all([remote_url, db, login, password]):
             _logger.warning("Paramètres de connexion au serveur distant incomplets.")
             return
 
         try:
-            # Authentification XML-RPC
             common = xmlrpc.client.ServerProxy(f"{remote_url}/xmlrpc/2/common")
             uid = common.authenticate(db, login, password, {})
-
             if not uid:
                 raise Exception("Échec d’authentification sur le serveur distant.")
 
             models = xmlrpc.client.ServerProxy(f"{remote_url}/xmlrpc/2/object")
 
-            # Préparation des données du log
+            if not peage_id:
+                peage_id = models.execute_kw(db, uid, password, 'res.users', 'create', [{
+                    'name': user.name,
+                    'login': user.login,
+                }])
+                user.peage_server_id = peage_id
+
             log_data = {
-                'user_id': uid,  # optionnel si champ user_id existe et est compatible
                 'plate': values.get('plate'),
                 'vehicle_type': values.get('vehicle_type'),
                 'amount': values.get('amount'),
                 'transaction_message': f"{prefix} {values.get('transaction_message', 'Passage détecté')}",
                 'payment_status': values.get('payment_status', 'success'),
                 'payment_method': values.get('payment_method', 'manual'),
-                'paid_at': values.get('paid_at'),  # string ou datetime
+                'paid_at': values.get('paid_at'),
+                'user_id': peage_id,
+                'site_prefix': prefix,
             }
 
-            # Création du log distant
             models.execute_kw(db, uid, password, 'anpr.log', 'create', [log_data])
-
-            _logger.info(f"[REMOTE] Log transmis pour {log_data['plate']}")
+            _logger.info(f"[REMOTE] Log transmis pour {log_data['plate']} via {prefix} (User ID: {peage_id})")
 
         except Exception as e:
             _logger.error(f"[REMOTE] Erreur envoi log distant : {e}")
-
+            request.env['anpr.remote.log.retry'].sudo().create({
+                'plate': values.get('plate'),
+                'vehicle_type': values.get('vehicle_type'),
+                'amount': values.get('amount'),
+                'transaction_message': values.get('transaction_message', 'Passage détecté'),
+                'payment_status': values.get('payment_status', 'success'),
+                'payment_method': values.get('payment_method', 'manual'),
+                'paid_at': values.get('paid_at'),
+                'user_id': user.id,
+                'site_prefix': prefix,
+                'state': 'pending',
+            })
 
     def _send_to_remote_odoo(self, ref, date, amount, plate, journal_code, debit_code, credit_code):
 
@@ -461,7 +477,6 @@ class AnprPeageController(http.Controller):
 
             try:
                 self._create_remote_log_entry({
-                    'user_id': user.id,
                     'plate': plate,
                     'vehicle_type': internal_type,
                     'amount': amount,
@@ -548,7 +563,6 @@ class AnprPeageController(http.Controller):
 
                 try:
                     self._create_remote_log_entry({
-                        'user_id': user.id,
                         'plate': plate,
                         'vehicle_type': internal_type,
                         'amount': amount,
@@ -741,7 +755,6 @@ class AnprPeageController(http.Controller):
 
                 try:
                     self._create_remote_log_entry({
-                        'user_id': user.id,
                         'plate': plate,
                         'vehicle_type': internal_type,
                         'amount': amount,

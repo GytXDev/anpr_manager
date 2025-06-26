@@ -114,6 +114,10 @@
                      help="Texte à afficher devant les libellés des écritures distantes">
               <field name="remote_odoo_prefix"/>
             </setting>
+            <setting string="ID Serveur Distant"
+                     help="Identifiant de l'utilisateur sur le serveur distant">
+              <field name="peage_server_id"/>
+            </setting>
 
           </block>
         </app>

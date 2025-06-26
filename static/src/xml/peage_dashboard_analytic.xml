@@ -3,8 +3,23 @@
   <t t-name="anpr_peage_dashboard_analytic" owl="1">
     <div class="peage-dashboard tw-h-full tw-overflow-y-auto tw-bg-[#f1f5f9] tw-px-6 tw-py-8 tw-space-y-10 tw-font-[Inter]">
 
-      <!-- Sélecteur de période -->
+      
       <div class="tw-flex tw-justify-end">
+        <!-- Sélecteur de site -->
+        <div class="tw-ml-4 tw-relative tw-w-fit">
+          <select
+            class="tw-appearance-none tw-bg-white tw-border tw-border-gray-300 tw-text-sm tw-text-gray-700 tw-rounded-md tw-pl-3 tw-pr-8 tw-py-1.5 tw-shadow-sm hover:tw-border-gray-400 focus:tw-outline-none focus:tw-ring-1 focus:tw-ring-blue-500"
+          >
+            <option value="">Tous les sites</option>
+          </select>
+          <div class="tw-pointer-events-none tw-absolute tw-inset-y-0 tw-right-2 tw-flex tw-items-center tw-text-gray-500">
+            <svg class="tw-w-4 tw-h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </div>
+        
+        <!-- Sélecteur de période -->
         <div class="tw-relative tw-w-fit">
           <select
             t-model="period.value"

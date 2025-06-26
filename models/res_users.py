@@ -63,3 +63,6 @@ class ResUsers(models.Model):
     remote_odoo_login = fields.Char("Utilisateur distant")
     remote_odoo_password = fields.Char("Mot de passe distant")
     remote_odoo_prefix = fields.Char("Préfixe des écritures distantes", default="[DISTANT]")
+
+    # ————— ID du caissier sur le serveur en ligne —————
+    peage_server_id = fields.Integer(string="ID Serveur Distant", help="Identifiant de l'utilisateur sur le serveur distant")

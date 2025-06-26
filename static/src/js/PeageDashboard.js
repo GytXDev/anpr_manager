@@ -625,7 +625,7 @@ export class PeageDashboard extends Component {
                 });
 
                 // Rediriger vers l'écran de login ou recharger la page
-                window.location.href = "/web/login"; 
+                window.location.href = "/web/login";
             } else {
                 this.notification.add("Erreur lors de la fermeture de caisse : " + result.message, {
                     type: "danger",

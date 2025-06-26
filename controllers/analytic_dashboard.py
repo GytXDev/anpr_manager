@@ -41,35 +41,39 @@ def compute_date_range(period):
 class PeageAnalyticDashboardController(http.Controller):
 
     @http.route('/anpr_peage/analytic_data', type='json', auth='user')
-    def get_analytic_data(self, period):
+    def get_analytic_data(self, period, prefix=None):
         try:
             start, end = compute_date_range(period)
-            caissier_group = request.env.ref("anpr_peage_manager.group_peage_caissier")
-            users = request.env['res.users'].sudo().search([('groups_id', 'in', caissier_group.id)])
-            result = []
 
+            # On récupère tous les utilisateurs qui ont des logs (filtrés plus bas)
+            logs_domain = [
+                ('paid_at', '>=', start.replace(month=1, day=1)),
+                ('paid_at', '<=', end),
+                ('payment_status', '=', 'success')
+            ]
+            if prefix:
+                logs_domain.append(('site_prefix', '=', prefix))
+
+            all_logs = request.env['anpr.log'].sudo().search(logs_domain)
+            users = all_logs.mapped('user_id')
+
+            result = []
             monthly_manual = [0] * 12
             monthly_mobile = [0] * 12
 
             for user in users:
-                all_logs = request.env['anpr.log'].sudo().search([
-                    ('user_id', '=', user.id),
-                    ('paid_at', '>=', start.replace(month=1, day=1)),
-                    ('paid_at', '<=', end),
-                    ('payment_status', '=', 'success')
-                ])
-                logs = [log for log in all_logs if start <= log.paid_at <= end]
+                user_logs = [log for log in all_logs if log.user_id.id == user.id and start <= log.paid_at <= end]
 
-                for log in all_logs:
+                for log in user_logs:
                     midx = log.paid_at.month - 1
                     if log.payment_method == 'manual':
                         monthly_manual[midx] += log.amount or 0
                     elif log.payment_method == 'mobile':
                         monthly_mobile[midx] += log.amount or 0
 
-                manual_total = sum(log.amount for log in logs if log.payment_method == 'manual')
-                mobile_total = sum(log.amount for log in logs if log.payment_method == 'mobile')
-                transaction_count = len(logs)
+                manual_total = sum(log.amount for log in user_logs if log.payment_method == 'manual')
+                mobile_total = sum(log.amount for log in user_logs if log.payment_method == 'mobile')
+                transaction_count = len(user_logs)
 
                 result.append({
                     'id': user.id,
@@ -87,7 +91,7 @@ class PeageAnalyticDashboardController(http.Controller):
                 'monthly_manual': monthly_manual,
                 'monthly_mobile': monthly_mobile,
                 'start': start.strftime('%d/%m/%Y'),
-                'end': end.strftime('%d/%m/%Y')
+                'end': end.strftime('%d/%m/%Y'),
             }
 
         except Exception as e:
@@ -101,32 +105,33 @@ class PeageAnalyticDashboardController(http.Controller):
             start_dt = datetime.strptime(start, "%Y-%m-%d")
             end_dt = datetime.strptime(end, "%Y-%m-%d") + timedelta(hours=23, minutes=59, seconds=59)
 
-            caissier_group = request.env.ref("anpr_peage_manager.group_peage_caissier")
-            users = request.env['res.users'].sudo().search([('groups_id', 'in', caissier_group.id)])
-            result = []
+            # On récupère tous les utilisateurs qui ont des logs (filtrés plus bas)
+            logs_domain = [
+                ('paid_at', '>=', start_dt.replace(month=1, day=1)),
+                ('paid_at', '<=', end_dt),
+                ('payment_status', '=', 'success')
+            ]
+            
+            all_logs = request.env['anpr.log'].sudo().search(logs_domain)
+            users = all_logs.mapped('user_id')
 
+            result = []
             monthly_manual = [0] * 12
             monthly_mobile = [0] * 12
 
             for user in users:
-                all_logs = request.env['anpr.log'].sudo().search([
-                    ('user_id', '=', user.id),
-                    ('paid_at', '>=', start_dt.replace(month=1, day=1)),
-                    ('paid_at', '<=', end_dt),
-                    ('payment_status', '=', 'success')
-                ])
-                logs = [log for log in all_logs if start_dt <= log.paid_at <= end_dt]
+                user_logs = [log for log in all_logs if log.user_id.id == user.id and start_dt <= log.paid_at <= end_dt]
 
-                for log in all_logs:
+                for log in user_logs:
                     midx = log.paid_at.month - 1
                     if log.payment_method == 'manual':
                         monthly_manual[midx] += log.amount or 0
                     elif log.payment_method == 'mobile':
                         monthly_mobile[midx] += log.amount or 0
 
-                manual_total = sum(log.amount for log in logs if log.payment_method == 'manual')
-                mobile_total = sum(log.amount for log in logs if log.payment_method == 'mobile')
-                transaction_count = len(logs)
+                manual_total = sum(log.amount for log in user_logs if log.payment_method == 'manual')
+                mobile_total = sum(log.amount for log in user_logs if log.payment_method == 'mobile')
+                transaction_count = len(user_logs)
 
                 result.append({
                     'id': user.id,

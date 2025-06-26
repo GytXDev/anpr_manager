@@ -2,18 +2,18 @@
 <odoo>
   <data>
 
-    <!-- ************************** -->
-    <!-- 1. MENUS RACINES ET GLOBAUX -->
-    <!-- ************************** -->
+    <!-- ============================================== -->
+    <!-- 1. RACINE DE MENU ET ICONE DE L'APPLICATION -->
+    <!-- ============================================== -->
     <menuitem id="menu_anpr_peage_root"
               name="OTECHPEAGE"
               sequence="10"
               web_icon="anpr_peage_manager,static/description/icon.png"/>
 
-    <!-- ************************** -->
-    <!-- 2. ACTIONS CLIENT (OWL/JS) -->
-    <!-- ************************** -->
-    <!-- Application Principale -->
+    <!-- ============================================== -->
+    <!-- 2. ACTIONS CLIENT (OWL/JS) - INTERFACES CUSTOM -->
+    <!-- ============================================== -->
+    <!-- Application Principale de Caisse -->
     <record id="action_client_peage_main" model="ir.actions.client">
       <field name="name">Caisse</field>
       <field name="tag">anpr_peage_main</field>
@@ -25,11 +25,12 @@
       <field name="tag">anpr_peage_dashboard_analytic</field>
     </record>
 
-    <!-- *********************** -->
-    <!-- 3. VUES ET ACTIONS CRUD -->
-    <!-- *********************** -->
-    <!-- ANPR Log (Historique Transactions) -->
-    <!-- <record id="view_anpr_log_list" model="ir.ui.view">
+    <!-- ============================================== -->
+    <!-- 3. VUES ET ACTIONS POUR LES MODELES PRINCIPAUX -->
+    <!-- ============================================== -->
+
+    <!-- ***** Historique des Transactions ANPR ***** -->
+    <record id="view_anpr_log_list" model="ir.ui.view">
       <field name="name">anpr.log.list</field>
       <field name="model">anpr.log</field>
       <field name="arch" type="xml">
@@ -42,29 +43,60 @@
           <field name="transaction_message"/>
         </list>
       </field>
-    </record> -->
+    </record>
 
-    <!-- <record id="action_anpr_log_list_only" model="ir.actions.act_window">
+    <record id="action_anpr_log_list_only" model="ir.actions.act_window">
       <field name="name">Historique des Transactions</field>
       <field name="res_model">anpr.log</field>
       <field name="view_mode">list,form</field>
       <field name="view_id" ref="view_anpr_log_list"/>
-    </record> -->
+      <field name="help" type="html">
+        <p class="o_view_nocontent_smiling_face">
+          Aucune transaction enregistrée pour le moment
+        </p>
+      </field>
+    </record>
 
-    <!-- Failed Remote Move (Écritures échouées) -->
+    <!-- ***** Transactions échouées à renvoyer ***** -->
+    <record id="view_remote_log_retry_list" model="ir.ui.view">
+      <field name="name">remote.log.retry.list</field>
+      <field name="model">anpr.remote.log.retry</field>
+      <field name="arch" type="xml">
+        <list string="Transactions échouées à renvoyer">
+          <field name="plate" string="Plaque"/>
+          <field name="vehicle_type" string="Type véhicule"/>
+          <field name="amount" string="Montant"/>
+          <field name="payment_status" string="Statut paiement"/>
+          <field name="payment_method" string="Méthode paiement"/>
+          <field name="paid_at" string="Date paiement"/>
+          <field name="user_id" string="Opérateur"/>
+          <field name="state" string="État"/>
+        </list>
+      </field>
+    </record>
+
+    <record id="action_remote_log_retry" model="ir.actions.act_window">
+      <field name="name">Transactions échouées</field>
+      <field name="res_model">anpr.remote.log.retry</field>
+      <field name="view_mode">list,form</field>
+      <field name="view_id" ref="view_remote_log_retry_list"/>
+      <field name="context">{'search_default_filter_to_retry': 1}</field>
+    </record>
+
+    <!-- ***** Écritures comptables échouées ***** -->
     <record id="view_failed_remote_move_list" model="ir.ui.view">
       <field name="name">failed.remote.move.list</field>
       <field name="model">failed.remote.move</field>
       <field name="arch" type="xml">
         <list string="Écritures échouées">
-          <field name="ref"/>
-          <field name="date"/>
-          <field name="amount"/>
-          <field name="plate"/>
-          <field name="journal_code"/>
-          <field name="debit_code"/>
-          <field name="credit_code"/>
-          <field name="user_id"/>
+          <field name="ref" string="Référence"/>
+          <field name="date" string="Date"/>
+          <field name="amount" string="Montant"/>
+          <field name="plate" string="Plaque"/>
+          <field name="journal_code" string="Code journal"/>
+          <field name="debit_code" string="Compte débit"/>
+          <field name="credit_code" string="Compte crédit"/>
+          <field name="user_id" string="Opérateur"/>
         </list>
       </field>
     </record>
@@ -76,15 +108,21 @@
         <form string="Détail de l'écriture échouée">
           <sheet>
             <group>
-              <field name="ref"/>
-              <field name="date"/>
-              <field name="amount"/>
-              <field name="plate"/>
-              <field name="journal_code"/>
-              <field name="debit_code"/>
-              <field name="credit_code"/>
-              <field name="user_id"/>
-              <field name="error_message"/>
+              <group>
+                <field name="ref"/>
+                <field name="date"/>
+                <field name="amount"/>
+                <field name="plate"/>
+              </group>
+              <group>
+                <field name="journal_code"/>
+                <field name="debit_code"/>
+                <field name="credit_code"/>
+                <field name="user_id"/>
+              </group>
+            </group>
+            <group>
+              <field name="error_message" widget="text" class="oe_inline"/>
             </group>
           </sheet>
         </form>
@@ -95,40 +133,51 @@
       <field name="name">Écritures échouées</field>
       <field name="res_model">failed.remote.move</field>
       <field name="view_mode">list,form</field>
+      <field name="context">{'search_default_filter_failed': 1}</field>
+      <field name="help" type="html">
+        <p class="o_view_nocontent_smiling_face">
+          Aucune écriture échouée pour le moment
+        </p>
+      </field>
     </record>
 
-    <!-- **************** -->
-    <!-- 4. STRUCTURE MENU -->
-    <!-- **************** -->
+    <!-- ============================================== -->
+    <!-- 4. STRUCTURE DE MENU PRINCIPALE -->
+    <!-- ============================================== -->
     <!-- Menu Principal -->
     <menuitem id="menu_peage_main"
               name="Caisse"
               parent="menu_anpr_peage_root"
               action="action_client_peage_main"
-              sequence="1"/>
+              sequence="10"/>
 
-    <!-- Menu Historique -->
-    <!-- <menuitem id="menu_anpr_log_list"
-              name="Historique"
-              parent="menu_anpr_peage_root"
-              action="action_anpr_log_list_only"
-              sequence="2"/> -->
-
-    <!-- Menu Écritures Échouées -->
-    <menuitem id="menu_failed_remote_move"
-              name="Écritures Échouées"
-              parent="menu_anpr_peage_root"
-              action="action_failed_remote_move"
-              sequence="3"
-              />
-
-    <!-- Menu Dashboard -->
+    <!-- Menu Tableau de Bord -->
     <menuitem id="menu_peage_dashboard_analytic"
               name="Tableau de Bord"
               parent="menu_anpr_peage_root"
               action="action_client_peage_dashboard_analytic"
-              sequence="4"
-              groups="anpr_peage_manager.group_peage_superviseur"/>
+              sequence="20"/>
+
+    <!-- Menu Historique -->
+    <menuitem id="menu_anpr_log_list"
+              name="Historique Transactions"
+              parent="menu_anpr_peage_root"
+              action="action_anpr_log_list_only"
+              sequence="30"/>
+
+    <!-- Menu Transactions échouées -->
+    <menuitem id="menu_remote_log_retry"
+              name="Transactions à renvoyer"
+              parent="menu_anpr_peage_root"
+              action="action_remote_log_retry"
+              sequence="40"/>
+
+    <!-- Menu Écritures Échouées -->
+    <menuitem id="menu_failed_remote_move"
+              name="Écritures comptables échouées"
+              parent="menu_anpr_peage_root"
+              action="action_failed_remote_move"
+              sequence="50"/>
 
   </data>
 </odoo>

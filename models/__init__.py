@@ -5,3 +5,4 @@ from . import hikcentral_service
 from . import account_patch
 from . import res_users
 from . import failed_remote_move
+from . import remote_log_retry

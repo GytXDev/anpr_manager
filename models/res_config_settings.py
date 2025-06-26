@@ -54,11 +54,12 @@ class ResConfigSettings(models.TransientModel):
         help="Tarif hors taxe pour la catégorie « Bus »."
     )
 
-    # ←←← NOUVEAU CHAMP ←←←
     email_report_from = fields.Char(
         string="Email d'envoi du rapport",
         help="Adresse email qui sera utilisée comme expéditeur pour l’envoi des rapports."
     )
+
+    peage_server_id = fields.Integer(string="ID Serveur Distant", help="Identifiant de l'utilisateur sur le serveur distant")
 
     @api.model
     def get_values(self):
@@ -73,7 +74,7 @@ class ResConfigSettings(models.TransientModel):
             'tva_rate', 'price_autre', 'price_car', 'price_camion', 'price_4x4', 'price_bus',
             'email_report_from','remote_odoo_url', 'remote_odoo_db', 
             'remote_odoo_login', 'remote_odoo_password',
-            'remote_odoo_prefix',
+            'remote_odoo_prefix','peage_server_id',
         ]:
             if field_name in user._fields:
                 res[field_name] = getattr(user, field_name, False)
@@ -89,7 +90,7 @@ class ResConfigSettings(models.TransientModel):
             'printer_ip', 'printer_port',
             'tva_rate', 'price_autre', 'price_car', 'price_camion', 'price_4x4', 'price_bus',
             'email_report_from', 'remote_odoo_url', 'remote_odoo_db', 
-            'remote_odoo_login', 'remote_odoo_password', 'remote_odoo_prefix',
+            'remote_odoo_login', 'remote_odoo_password', 'remote_odoo_prefix','peage_server_id',
         ]:
             if field_name in self._fields and field_name in user._fields:
                 user[field_name] = getattr(self, field_name)

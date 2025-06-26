@@ -12,6 +12,7 @@ class AnprLog(models.Model):
     _description = 'Historique des passages ANPR'
 
     user_id = fields.Many2one('res.users', string="Caissier", default=lambda self: self.env.uid)
+    site_prefix = fields.Char(string="Source du log", help="Nom du site d'origine, ex: Ntoum, Owendo")
     plate = fields.Char(string="Plaque d'immatriculation", required=True)
     vehicle_type = fields.Selection([
         ('car',     'Car'),
