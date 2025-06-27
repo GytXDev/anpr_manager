@@ -735,24 +735,30 @@ class AnprPeageController(http.Controller):
         if not subscription:
             return {'exists': False}
 
-        # Détermine si le solde est suffisant
         if subscription.balance >= subscription.cost_per_passage:
             try:
                 # Débit du compte
                 subscription.debit_passage()
 
-                # Création du log
+                # Définition des variables nécessaires
+                amount = subscription.cost_per_passage
+                internal_type = subscription.vehicle_type
+                transaction_message = "Passage via abonnement actif"
+                payment_method = "subscription"
+
+                # Création du log local
                 log_entry = request.env['anpr.log'].sudo().create({
                     'user_id': user.id,
                     'plate': plate_clean,
-                    'vehicle_type': subscription.vehicle_type,
+                    'vehicle_type': internal_type,
                     'amount': 0.0,
-                    'transaction_message': "Passage via abonnement actif",
+                    'transaction_message': transaction_message,
                     'payment_status': "success",
-                    'payment_method': "subscription",
+                    'payment_method': payment_method,
                     'paid_at': now_gabon(),
                 })
 
+                # Création du log distant
                 try:
                     self._create_remote_log_entry({
                         'plate': plate,
@@ -767,12 +773,7 @@ class AnprPeageController(http.Controller):
                     _logger.warning(f"Échec de l'envoi du log au serveur distant: {e}")
 
                 # Écriture comptable
-                self._create_account_move(
-                    amount=subscription.cost_per_passage,
-                    payment_method='subscription',
-                    plate=plate_clean,
-                    user_name=user.name
-                )
+                self._create_account_move(amount, payment_method, plate, user.name)
 
                 # Ouverture de la caisse
                 ip_addr = user.printer_ip
@@ -781,7 +782,9 @@ class AnprPeageController(http.Controller):
                     self.open_drawer_only(ip_addr, port)
 
                 return {'exists': True}
+
             except Exception as e:
+                _logger.error(f"Erreur lors du traitement du passage abonnement : {e}")
                 return {'exists': False, 'error': str(e)}
         else:
             # Solde insuffisant, redirection vers paiement normal
