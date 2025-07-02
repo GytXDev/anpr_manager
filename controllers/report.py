@@ -4,6 +4,8 @@ from odoo import http
 from odoo.http import request
 from datetime import datetime, timedelta
 from pytz import timezone
+import unicodedata
+import re
 from io import BytesIO
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet
@@ -20,6 +22,25 @@ _logger = logging.getLogger(__name__)
 def now_gabon():
     return datetime.now(timezone("Africa/Libreville")).replace(tzinfo=None)
 
+def sanitize_filename(text):
+    """Nettoie le texte pour un nom de fichier valide"""
+    text = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('utf-8')
+    text = re.sub(r'[^\w\s-]', '', text).strip().lower()
+    return re.sub(r'[\s]+', '_', text)
+
+def get_period_label(period, start=None, end=None):
+    labels = {
+        "daily": "journalier",
+        "weekly": "hebdomadaire",
+        "monthly": "mensuel",
+        "quarterly": "trimestriel",
+        "semiannual": "semestriel",
+        "yearly": "annuel",
+        "custom": "personnalisée"
+    }
+    if period == "custom" and start and end:
+        return f"{datetime.strptime(start, '%Y-%m-%d').strftime('%d-%m-%Y')} au {datetime.strptime(end, '%Y-%m-%d').strftime('%d-%m-%Y')}"
+    return labels.get(period, period)
 
 def compute_date_range(period, start_str=None, end_str=None):
     today = now_gabon().date()
@@ -70,7 +91,7 @@ def generate_report_pdf(period, start, end, user):
     styles = getSampleStyleSheet()
     elements = []
 
-    title = Paragraph(f"<b>Rapport de caisse — {period.capitalize()}</b>", styles['Title'])
+    title = Paragraph(f"<b>Rapport de caisse — {get_period_label(period, start.strftime('%Y-%m-%d'), end.strftime('%Y-%m-%d')).capitalize()}</b>", styles['Title'])
     info  = Paragraph(
         f"Caissier : <b>{user.name}</b><br/>"
         f"Période : <b>{start.strftime('%d/%m/%Y')} → {end.strftime('%d/%m/%Y')}</b><br/>"
@@ -87,26 +108,29 @@ def generate_report_pdf(period, start, end, user):
     ], order="paid_at asc")
 
     def render_table(label, filtered_logs):
+        if not filtered_logs:
+            return 0  # Ne rien faire si aucun log
+
         elements.append(Paragraph(f"<b>{label}</b>", styles['Heading3']))
-        data = [["Date","Heure","Plaque","Montant (CFA)"]]
+        data = [["Date", "Heure", "Plaque", "Montant (CFA)"]]
         total = 0
         for log in filtered_logs:
-            dt     = log.paid_at.strftime("%d/%m/%Y")
-            hr     = log.paid_at.strftime("%H:%M")
-            plate  = log.plate or "-"
+            dt = log.paid_at.strftime("%d/%m/%Y")
+            hr = log.paid_at.strftime("%H:%M")
+            plate = log.plate or "-"
             amount = f"{log.amount:,.0f}"
             data.append([dt, hr, plate, amount])
             total += log.amount
 
-        table = Table(data, colWidths=[60*mm,40*mm,40*mm,40*mm])
+        table = Table(data, colWidths=[60*mm, 40*mm, 40*mm, 40*mm])
         table.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,0), colors.lightblue),
-            ('TEXTCOLOR',  (0,0), (-1,0), colors.black),
-            ('ALIGN',      (0,0), (-1,-1), 'CENTER'),
-            ('GRID',       (0,0), (-1,-1), 0.5, colors.grey),
-            ('FONTNAME',   (0,0), (-1,0), 'Helvetica-Bold'),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
         ]))
-        elements.extend([table, Spacer(1,10)])
+        elements.extend([table, Spacer(1, 10)])
         return total
 
     total_manual = render_table("Paiements MANUELS", logs.filtered(lambda l: l.payment_method=='manual'))
@@ -186,15 +210,19 @@ class ANPRReportController(http.Controller):
             return {'status': 'error', 'message': str(e)}
 
     @http.route(
-        '/anpr_peage/download_report_pdf',
+    '/anpr_peage/download_report_pdf',
         type='http', auth='user', methods=['GET'], csrf=False
     )
     def download_report_pdf(self, user_id, period, start=None, end=None, **kwargs):
         try:
-            user       = request.env['res.users'].sudo().browse(int(user_id))
+            user = request.env['res.users'].sudo().browse(int(user_id))
             start_dt, end_dt = compute_date_range(period, start, end)
             pdf_data   = generate_report_pdf(period, start_dt, end_dt, user)
-            filename   = f"rapport_caissier_{user_id}_{period}.pdf"
+
+            clean_name = sanitize_filename(user.name)
+            period_label = get_period_label(period, start, end)
+            filename   = f"rapport_caissier_{clean_name}_{period_label}.pdf"
+
             headers    = [
                 ('Content-Type', 'application/pdf'),
                 ('Content-Disposition', f'attachment; filename="{filename}"')
@@ -205,12 +233,12 @@ class ANPRReportController(http.Controller):
             return request.not_found()
 
     @http.route(
-        '/anpr_peage/download_report_excel',
+    '/anpr_peage/download_report_excel',
         type='http', auth='user', methods=['GET'], csrf=False
     )
     def download_report_excel(self, user_id, period, start=None, end=None, **kwargs):
         try:
-            user       = request.env['res.users'].sudo().browse(int(user_id))
+            user = request.env['res.users'].sudo().browse(int(user_id))
             start_dt, end_dt = compute_date_range(period, start, end)
 
             logs = request.env['anpr.log'].sudo().search([
@@ -247,10 +275,12 @@ class ANPRReportController(http.Controller):
             xlsx_data = output.getvalue()
             output.close()
 
-            filename = f"rapport_caissier_{user_id}_{period}.xlsx"
+            clean_name = sanitize_filename(user.name)
+            period_label = get_period_label(period, start, end)
+            filename = f"rapport_caissier_{clean_name}_{period_label}.xlsx"
+
             headers = [
-                ('Content-Type',
-                 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+                ('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
                 ('Content-Disposition', f'attachment; filename="{filename}"')
             ]
             return request.make_response(xlsx_data, headers=headers)

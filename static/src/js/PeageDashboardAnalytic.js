@@ -35,8 +35,11 @@ export class PeageDashboardAnalytic extends Component {
 
         this.barInstance = null;
         this.donutInstance = null;
+        this.prefix = useState({ value :""}); // "" = Tous les sites
+        this.sitePrefixes = useState([]); // Liste les options
 
         onMounted(() => {
+            this.loadPrefixes();
             this.loadData();
         });
     }
@@ -56,12 +59,15 @@ export class PeageDashboardAnalytic extends Component {
             }
             result = await rpc("/anpr_peage/analytic_data_custom", {
                 start: this.period.start,
-                end: this.period.end
+                end: this.period.end, 
+                prefix : this.prefix.value || null
             });
         } else {
             result = await rpc("/anpr_peage/analytic_data", {
-                period: this.period.value
+                period: this.period.value,
+                prefix: this.prefix.value || null
             });
+
         }
 
         if (result.status === "success") {
@@ -83,6 +89,16 @@ export class PeageDashboardAnalytic extends Component {
         await this.loadData();
         // Ce flag passe à true une fois que loadData() a terminé :
         this.customLoaded.value = true;
+    }
+
+    async loadPrefixes() {
+        try {
+            const result = await rpc("/anpr_peage/available_prefixes");
+            result.sort(); // Trie de façon alphabétiques les prefixes 
+            this.sitePrefixes.splice(0, this.sitePrefixes.length, ...result);
+        } catch(error){
+            console.error("Erreur lors du chargement des prefixes :", error)
+        }
     }
 
     showTransactions(userId) {

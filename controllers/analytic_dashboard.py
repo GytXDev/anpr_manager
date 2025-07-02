@@ -5,6 +5,8 @@ from odoo.http import request
 from datetime import datetime, timedelta
 from pytz import timezone
 from .pay import generate_receipt_content
+import unicodedata
+import re
 import logging
 
 _logger = logging.getLogger(__name__)
@@ -100,7 +102,7 @@ class PeageAnalyticDashboardController(http.Controller):
 
     # Route pour la période personnalisée
     @http.route('/anpr_peage/analytic_data_custom', type='json', auth='user')
-    def get_analytic_data_custom(self, start=None, end=None):
+    def get_analytic_data_custom(self, start=None, end=None, prefix=None):
         try:
             start_dt = datetime.strptime(start, "%Y-%m-%d")
             end_dt = datetime.strptime(end, "%Y-%m-%d") + timedelta(hours=23, minutes=59, seconds=59)
@@ -111,6 +113,9 @@ class PeageAnalyticDashboardController(http.Controller):
                 ('paid_at', '<=', end_dt),
                 ('payment_status', '=', 'success')
             ]
+
+            if prefix:
+                logs_domain.append(('site_prefix', '=', prefix))
             
             all_logs = request.env['anpr.log'].sudo().search(logs_domain)
             users = all_logs.mapped('user_id')
@@ -155,6 +160,20 @@ class PeageAnalyticDashboardController(http.Controller):
         except Exception as e:
             _logger.error("Erreur dans le backend analytique personnalisé : %s", e)
             return {'status': 'error', 'message': str(e)}
+
+    # Méthode pour lister les préfix de transactions
+    @http.route('/anpr_peage/available_prefixes', type='json', auth='user')
+    def get_available_prefixes(self):
+        try:
+            prefixes = request.env['anpr.log'].sudo().read_group(
+                [('site_prefix', '!=', False)],
+                ['site_prefix'],
+                ['site_prefix']
+            )
+            return sorted(p['site_prefix'] for p in prefixes if p.get('site_prefix'))
+        except Exception as e:
+            _logger.error("Erreur lors du chargement des prefixes: %s", e)
+            return []
 
     @http.route('/anpr_peage/transactions/<int:user_id>', type='http', auth='user')
     def redirect_to_transactions(self, user_id, period="monthly", start=None, end=None, **kwargs):
